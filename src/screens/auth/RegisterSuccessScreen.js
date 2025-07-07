@@ -7,7 +7,7 @@ export default function RegisterSuccessScreen() {
   const navigation = useNavigation();
 
   const handleStart = () => {
-    navigation.navigate("Home"); // Hoặc trang chính bạn muốn
+    navigation.navigate("Home");
   };
 
   return (

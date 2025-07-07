@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { Text, TextInput, Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
-import RegisterStepper from "../../components/RegisterStepper"; // điều chỉnh path nếu cần
+import RegisterStepper from "../../components/RegisterStepper"; 
 
 export default function AddPaymentMethodScreen() {
   const navigation = useNavigation();
