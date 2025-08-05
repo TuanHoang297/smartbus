@@ -1,39 +1,27 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, TextInput, FlatList, StyleSheet, Text } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { useDispatch, useSelector } from "react-redux";
+import { getAllBusRoutes } from "../../redux/slices/busRouteSlice";
+
 import RouteItem from "../../components/routes/RouteItem";
 import Navbar from "../../components/Navbar";
 import BottomNavigationBar from "../../components/BottomNavigation";
-import { useNavigation } from "@react-navigation/native";
-
-const dummyRoutes = [
-  {
-    code: "001",
-    name: "Bến Thành - Suối Tiên",
-    stops: 52,
-    time: "06:00-22:00",
-    price: "7.000 VND",
-    isNew: true,
-    isFavorited: true,
-  },
-  {
-    code: "002",
-    name: "VinHomes - Bến xe Sài Gòn",
-    stops: 38,
-    time: "05:30-21:00",
-    price: "7.000 VND",
-    isNew: false,
-    isFavorited: false,
-  },
-  // thêm các tuyến khác...
-];
 
 export default function RouteLookupScreen() {
   const [search, setSearch] = useState("");
   const navigation = useNavigation();
+  const dispatch = useDispatch();
 
-  const filtered = dummyRoutes.filter((route) =>
-    route.name.toLowerCase().includes(search.toLowerCase()) ||
-    route.code.includes(search)
+  const { routes, status } = useSelector((state) => state.busRoutes);
+
+  useEffect(() => {
+    dispatch(getAllBusRoutes());
+  }, []);
+
+  const filtered = routes.filter((route) =>
+    route.RouteName.toLowerCase().includes(search.toLowerCase()) ||
+    route.RouteCode.includes(search)
   );
 
   return (
@@ -52,18 +40,33 @@ export default function RouteLookupScreen() {
 
       <FlatList
         data={filtered}
-        keyExtractor={(item) => item.code}
+        keyExtractor={(item) => item.Id}
         renderItem={({ item }) => (
-          <RouteItem item={item} onPress={() => navigation.navigate("RouteDetail", { code: item.code })} />
+          <RouteItem
+            item={{
+              code: item.RouteCode,
+              name: item.RouteName,
+              distance: item.DistanceKm,
+              startTime: item.StartTime,
+              endTime: item.EndTime,
+              interval: item.TripInterval,
+            }}
+            onPress={() =>
+              navigation.navigate("RouteDetail", { code: item.RouteCode, id: item.Id })
+            }
+          />
         )}
         contentContainerStyle={styles.list}
       />
 
-      <BottomNavigationBar activeTab="search" onTabPress={(key) => {
-        if (key === "map") navigation.navigate("Home");
-        else if (key === "tickets") navigation.navigate("MyTickets");
-        else if (key === "account") navigation.navigate("Account");
-      }} />
+      <BottomNavigationBar
+        activeTab="search"
+        onTabPress={(key) => {
+          if (key === "map") navigation.navigate("Home");
+          else if (key === "tickets") navigation.navigate("MyTickets");
+          else if (key === "account") navigation.navigate("Account");
+        }}
+      />
     </View>
   );
 }

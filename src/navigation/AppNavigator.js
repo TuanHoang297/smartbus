@@ -22,6 +22,9 @@ import HomeScreen from "../screens/home/HomeScreen"; // Tạm thời nếu bạn
 import NotificationPanel from "../components/NotificationPanel";
 import { RouteLookupScreen } from "../screens/home";
 import RouteDetailScreen from "../components/routes/RouteDetailScreen";
+import { BuyTicketScreen, MyTicketScreen } from "../screens/ticket";
+import ProfileScreen from "../screens/profile/ProfileScreen";
+import EditProfileScreen from "../screens/profile/EditProfileScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -42,13 +45,18 @@ export default function AppNavigator() {
         <Stack.Screen name="OTPVerificationScreen" component={OTPVerificationScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="RegisterSuccess" component={RegisterSuccessScreen} />
-      <Stack.Screen name="NotificationPanel" component={NotificationPanel} />
+        <Stack.Screen name="NotificationPanel" component={NotificationPanel} />
 
         {/* Main app (placeholder) */}
         <Stack.Screen name="Home" component={HomeScreen} />
-  <Stack.Screen name="RouteLookup" component={RouteLookupScreen} />
- <Stack.Screen name="RouteDetail" component={RouteDetailScreen} />
+        <Stack.Screen name="RouteLookup" component={RouteLookupScreen} />
+        <Stack.Screen name="RouteDetail" component={RouteDetailScreen} />
 
+        <Stack.Screen name="TicketsScreen" component={MyTicketScreen} />
+        <Stack.Screen name="BuyTicketsScreen" component={BuyTicketScreen} />
+
+        <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+        <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

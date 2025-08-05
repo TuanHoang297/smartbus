@@ -26,7 +26,7 @@ export default function BottomNavigationBar({ activeTab }) {
         navigation.navigate("TicketsScreen");
         break;
       case "account":
-        navigation.navigate("AccountScreen");
+        navigation.navigate("ProfileScreen");
         break;
       default:
         break;

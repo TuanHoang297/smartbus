@@ -12,26 +12,26 @@ export default function Navbar({ showBack = false, avatarUrl }) {
   return (
     <View style={styles.container}>
       <View style={styles.left}>
-  {showBack && (
-    <IconButton
-      icon="chevron-left"
-      size={28}
-      iconColor="#00B050"
-      style={styles.backButton}
-      containerColor="white"
-      onPress={() => navigation.goBack()}
-    />
-  )}
-  <TouchableOpacity onPress={() => navigation.navigate("Home")}>
-    <Image
-      source={{
-        uri: "https://res.cloudinary.com/dkfykdjlm/image/upload/v1750842738/logobus_vxihzk.png",
-      }}
-      style={styles.logo}
-      resizeMode="contain"
-    />
-  </TouchableOpacity>
-</View>
+        {showBack && (
+          <IconButton
+            icon="chevron-left"
+            size={28}
+            iconColor="#00B050"
+            style={styles.backButton}
+            containerColor="white"
+            onPress={() => navigation.goBack()}
+          />
+        )}
+        <TouchableOpacity onPress={() => navigation.navigate("Home")}>
+          <Image
+            source={{
+              uri: "https://res.cloudinary.com/dkfykdjlm/image/upload/v1750842738/logobus_vxihzk.png",
+            }}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+      </View>
 
 
       <View style={styles.right}>
@@ -42,17 +42,21 @@ export default function Navbar({ showBack = false, avatarUrl }) {
             containerColor="white"
             size={24}
             style={styles.iconWrapper}
-onPress={() => navigation.navigate("NotificationPanel")}
+            onPress={() => navigation.navigate("NotificationPanel")}
           />
           <Badge style={styles.badge} size={8} />
         </View>
 
-        <TouchableOpacity style={styles.avatarWrapper}>
+        <TouchableOpacity
+          style={styles.avatarWrapper}
+          onPress={() => navigation.navigate("ProfileScreen")}
+        >
           <Image
             source={{ uri: avatarUrl || fallbackAvatar }}
             style={styles.avatar}
           />
         </TouchableOpacity>
+
       </View>
     </View>
   );

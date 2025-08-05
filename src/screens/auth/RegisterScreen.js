@@ -1,30 +1,43 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Image, Alert } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Image,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { Text, TextInput, Button, Checkbox } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
+import { useDispatch } from "react-redux";
 import RegisterStepper from "../../components/RegisterStepper";
+import { sendOtp } from "../../redux/slices/authSlice";
 
 export default function RegisterScreen() {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
 
   const [formData, setFormData] = useState({
-    username: "",
+    fullName: "",
+    email: "",
     password: "",
     phone: "",
     acceptTerms: false,
   });
 
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleRegister = async () => {
-    const { username, password, phone, acceptTerms } = formData;
+    const { fullName, email, password, phone, acceptTerms } = formData;
 
-    if (!username || !password || !phone) {
-      Alert.alert("Thiếu thông tin", "Vui lòng điền đầy đủ thông tin.");
+    if (!fullName || !email || !password || !phone) {
+      Alert.alert("Thiếu thông tin", "Vui lòng điền đầy đủ tất cả các trường.");
       return;
     }
 
@@ -35,87 +48,116 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      console.log("Đăng ký gửi lên:", formData);
+      await dispatch(sendOtp(email)).unwrap();
+
       setLoading(false);
-      navigation.navigate("AvatarScreen");
+      Alert.alert("Thành công", "Mã OTP đã được gửi. Vui lòng kiểm tra email.");
+
+      navigation.navigate("OTPVerificationScreen", {
+        email,
+        password,
+        phone,
+        fullName,
+      });
     } catch (error) {
       setLoading(false);
-      Alert.alert("Lỗi", "Đăng ký thất bại. Vui lòng thử lại.");
+      Alert.alert("Lỗi", error?.message || "Không thể gửi mã OTP.");
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Image
-        source={{
-          uri: "https://res.cloudinary.com/dkfykdjlm/image/upload/v1750842738/logobus_vxihzk.png",
-        }}
-        style={styles.logo}
-      />
-
-      {/* Indicator */}
-     <RegisterStepper step={1} />
-
-      <Text style={styles.title}>Thông tin đăng kí</Text>
-      <Text style={styles.subtitle}>Điền thông tin đăng kí xuống phía dưới</Text>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Tên đăng nhập</Text>
-        <TextInput
-          mode="outlined"
-          value={formData.username}
-          onChangeText={(text) => handleChange("username", text)}
-          left={<TextInput.Icon icon="account" />}
-          style={styles.input}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <Image
+          source={{
+            uri: "https://res.cloudinary.com/dkfykdjlm/image/upload/v1750842738/logobus_vxihzk.png",
+          }}
+          style={styles.logo}
         />
-      </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Mật khẩu</Text>
-        <TextInput
-          mode="outlined"
-          secureTextEntry
-          value={formData.password}
-          onChangeText={(text) => handleChange("password", text)}
-          left={<TextInput.Icon icon="lock" />}
-          style={styles.input}
-        />
-      </View>
+        <RegisterStepper step={1} />
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Số điện thoại</Text>
-        <TextInput
-          mode="outlined"
-          keyboardType="phone-pad"
-          value={formData.phone}
-          onChangeText={(text) => handleChange("phone", text)}
-          left={<TextInput.Icon icon="phone" />}
-          style={styles.input}
-        />
-      </View>
+        <Text style={styles.title}>Thông tin đăng kí</Text>
+        <Text style={styles.subtitle}>Điền thông tin đăng kí xuống phía dưới</Text>
 
-      <View style={styles.row}>
-        <Checkbox
-          status={formData.acceptTerms ? "checked" : "unchecked"}
-          onPress={() => handleChange("acceptTerms", !formData.acceptTerms)}
-          color="#00B050"
-        />
-        <Text style={styles.checkboxLabel}>
-          Tôi chấp nhận các Điều khoản và Chính sách bảo mật
-        </Text>
-      </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Tên người dùng</Text>
+          <TextInput
+            mode="outlined"
+            value={formData.fullName}
+            onChangeText={(text) => handleChange("fullName", text)}
+            left={<TextInput.Icon icon="account" />}
+            style={styles.input}
+          />
+        </View>
 
-      <Button
-        mode="contained"
-        onPress={handleRegister}
-        loading={loading}
-        disabled={loading}
-        style={styles.button}
-        labelStyle={{ fontWeight: "bold" }}
-      >
-        Đăng kí
-      </Button>
-    </ScrollView>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            mode="outlined"
+            value={formData.email}
+            onChangeText={(text) => handleChange("email", text)}
+            left={<TextInput.Icon icon="email" />}
+            style={styles.input}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Mật khẩu</Text>
+          <TextInput
+            mode="outlined"
+            secureTextEntry={!showPassword}
+            value={formData.password}
+            onChangeText={(text) => handleChange("password", text)}
+            left={<TextInput.Icon icon="lock" />}
+            right={
+              <TextInput.Icon
+                icon={showPassword ? "eye-off" : "eye"}
+                onPress={() => setShowPassword((prev) => !prev)}
+              />
+            }
+            style={styles.input}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Số điện thoại</Text>
+          <TextInput
+            mode="outlined"
+            keyboardType="phone-pad"
+            value={formData.phone}
+            onChangeText={(text) => handleChange("phone", text)}
+            left={<TextInput.Icon icon="phone" />}
+            style={styles.input}
+          />
+        </View>
+
+        <View style={styles.row}>
+          <Checkbox
+            status={formData.acceptTerms ? "checked" : "unchecked"}
+            onPress={() => handleChange("acceptTerms", !formData.acceptTerms)}
+            color="#00B050"
+          />
+          <Text style={styles.checkboxLabel}>
+            Tôi chấp nhận các Điều khoản và Chính sách bảo mật
+          </Text>
+        </View>
+
+        <Button
+          mode="contained"
+          onPress={handleRegister}
+          loading={loading}
+          disabled={loading}
+          style={styles.button}
+          labelStyle={{ fontWeight: "bold" }}
+        >
+          Gửi mã xác nhận
+        </Button>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -132,24 +174,6 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 16,
     resizeMode: "contain",
-  },
-  stepper: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  circle: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#ddd",
-  },
-  line: {
-    width: 24,
-    height: 2,
-    backgroundColor: "#ddd",
-    marginHorizontal: 4,
   },
   title: {
     fontSize: 18,

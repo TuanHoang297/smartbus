@@ -7,11 +7,11 @@ export default function RouteItem({ item, onPress }) {
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View style={styles.left}>
         <Icon name="bus" size={24} color="#00B050" />
-        <View style={{ marginLeft: 10 }}>
+        <View style={{ marginLeft: 10, flexShrink: 1 }}>
           <Text style={styles.routeCode}>Tuyến xe {item.code}</Text>
           <Text style={styles.routeName}>{item.name}</Text>
           <Text style={styles.meta}>
-            {item.time} · {item.price}
+            {item.distance} km · {item.startTime?.slice(0, 5)} - {item.endTime?.slice(0, 5)} · {item.interval}
           </Text>
         </View>
       </View>
@@ -53,6 +53,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#333",
     marginTop: 2,
+    flexWrap: "wrap",
   },
   meta: {
     fontSize: 12,

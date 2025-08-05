@@ -5,173 +5,198 @@ import {
   TextInput as RNTextInput,
   Alert,
   Image,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Text, TextInput, Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
+import { resetPasswordAPI, sendOtpAPI } from "../../services/authService";
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation();
   const [step, setStep] = useState(1);
 
-  const [phoneOrEmail, setPhoneOrEmail] = useState("");
-  const [otp, setOtp] = useState(["", "", "", "", ""]);
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const otpRefs = useRef([]);
 
-  const handleSendCode = () => {
-    if (!phoneOrEmail) {
-      Alert.alert("Lỗi", "Vui lòng nhập số điện thoại hoặc email.");
+  const handleSendCode = async () => {
+    if (!email) {
+      Alert.alert("Lỗi", "Vui lòng nhập email.");
       return;
     }
-    setStep(2);
+
+    try {
+      await sendOtpAPI(email);
+      setStep(2);
+      Alert.alert("Thành công", "Mã OTP đã được gửi đến email.");
+    } catch (err) {
+      Alert.alert("Lỗi", err?.response?.data?.message || "Gửi OTP thất bại.");
+    }
   };
 
   const handleConfirmOTP = () => {
     const fullCode = otp.join("");
-    if (fullCode.length < 5) {
+    if (fullCode.length < 6) {
       Alert.alert("Lỗi", "Vui lòng nhập đủ mã xác thực.");
       return;
     }
     setStep(3);
   };
 
-  const handleResetPassword = () => {
+  const handleResetPassword = async () => {
+    const fullCode = otp.join("");
+
     if (!password || !confirmPassword) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ mật khẩu.");
       return;
     }
+
     if (password !== confirmPassword) {
       Alert.alert("Lỗi", "Mật khẩu không khớp.");
       return;
     }
-    Alert.alert("Thành công", "Mật khẩu đã được cập nhật.");
-    navigation.navigate("Login");
+
+    try {
+      await resetPasswordAPI(email, password, fullCode);
+      Alert.alert("Thành công", "Mật khẩu đã được cập nhật.");
+      navigation.navigate("Login");
+    } catch (err) {
+      Alert.alert("Lỗi", err?.response?.data?.message || "Cập nhật mật khẩu thất bại.");
+    }
   };
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={{
-          uri: "https://res.cloudinary.com/dkfykdjlm/image/upload/v1750842738/logobus_vxihzk.png",
-        }}
-        style={styles.logo}
-      />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <Image
+          source={{
+            uri: "https://res.cloudinary.com/dkfykdjlm/image/upload/v1750842738/logobus_vxihzk.png",
+          }}
+          style={styles.logo}
+        />
 
-      {step === 1 && (
-        <>
-          <Text style={styles.title}>Đặt lại mật khẩu</Text>
-          <Text style={styles.subtitle}>
-            Nhập số điện thoại được liên kết với tài khoản của bạn.
-          </Text>
+        {step === 1 && (
+          <>
+            <Text style={styles.title}>Đặt lại mật khẩu</Text>
+            <Text style={styles.subtitle}>
+              Nhập địa chỉ email đã đăng ký tài khoản.
+            </Text>
 
-          <Text style={styles.label}>Số điện thoại hoặc Email</Text>
-          <TextInput
-            value={phoneOrEmail}
-            onChangeText={setPhoneOrEmail}
-            mode="outlined"
-            style={styles.input}
-            outlineColor="#00B050"
-            activeOutlineColor="#00B050"
-          />
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              mode="outlined"
+              style={styles.input}
+              outlineColor="#00B050"
+              activeOutlineColor="#00B050"
+            />
 
-          <Button
-            mode="contained"
-            onPress={handleSendCode}
-            style={styles.button}
-            labelStyle={styles.buttonLabel}
-          >
-            Gửi mã bảo mật
-          </Button>
-        </>
-      )}
+            <Button
+              mode="contained"
+              onPress={handleSendCode}
+              style={styles.button}
+              labelStyle={styles.buttonLabel}
+            >
+              Gửi mã xác thực
+            </Button>
+          </>
+        )}
 
-      {step === 2 && (
-        <>
-          <Text style={styles.title}>Nhập mã bảo mật</Text>
-          <Text style={styles.subtitle}>
-            Chúng tôi đã gửi mã gồm 5 chữ số đến {phoneOrEmail}
-          </Text>
+        {step === 2 && (
+          <>
+            <Text style={styles.title}>Nhập mã xác thực</Text>
+            <Text style={styles.subtitle}>
+              Chúng tôi đã gửi mã gồm 6 chữ số đến email {email}
+            </Text>
 
-          <View style={styles.otpRow}>
-            {otp.map((digit, index) => (
-              <RNTextInput
-                key={index}
-                ref={(ref) => (otpRefs.current[index] = ref)}
-                style={styles.otpInput}
-                keyboardType="number-pad"
-                maxLength={1}
-                value={digit}
-                onChangeText={(text) => {
-                  const newOtp = [...otp];
-                  newOtp[index] = text;
-                  setOtp(newOtp);
-                  if (text && index < 4) {
-                    otpRefs.current[index + 1]?.focus();
-                  }
-                }}
-              />
-            ))}
-          </View>
+            <View style={styles.otpRow}>
+              {otp.map((digit, index) => (
+                <RNTextInput
+                  key={index}
+                  ref={(ref) => (otpRefs.current[index] = ref)}
+                  style={styles.otpInput}
+                  keyboardType="number-pad"
+                  maxLength={1}
+                  value={digit}
+                  onChangeText={(text) => {
+                    const newOtp = [...otp];
+                    newOtp[index] = text;
+                    setOtp(newOtp);
+                    if (text && index < 5) {
+                      otpRefs.current[index + 1]?.focus();
+                    }
+                  }}
+                />
+              ))}
+            </View>
 
-          <Button
-            mode="contained"
-            onPress={handleConfirmOTP}
-            style={styles.button}
-            labelStyle={styles.buttonLabel}
-          >
-            Xác nhận mã
-          </Button>
-        </>
-      )}
+            <Button
+              mode="contained"
+              onPress={handleConfirmOTP}
+              style={styles.button}
+              labelStyle={styles.buttonLabel}
+            >
+              Xác nhận mã
+            </Button>
+          </>
+        )}
 
-      {step === 3 && (
-        <>
-          <Text style={styles.title}>Tạo mật khẩu</Text>
-          <Text style={styles.subtitle}>
-            Tạo mật khẩu mới cho tài khoản của bạn
-          </Text>
+        {step === 3 && (
+          <>
+            <Text style={styles.title}>Tạo mật khẩu mới</Text>
+            <Text style={styles.subtitle}>
+              Nhập mật khẩu mới cho tài khoản của bạn.
+            </Text>
 
-          <Text style={styles.label}>Mật khẩu mới</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            mode="outlined"
-            style={styles.input}
-            outlineColor="#00B050"
-            activeOutlineColor="#00B050"
-          />
+            <Text style={styles.label}>Mật khẩu mới</Text>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              mode="outlined"
+              style={styles.input}
+              outlineColor="#00B050"
+              activeOutlineColor="#00B050"
+            />
 
-          <Text style={styles.label}>Xác nhận mật khẩu</Text>
-          <TextInput
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            mode="outlined"
-            style={styles.input}
-            outlineColor="#00B050"
-            activeOutlineColor="#00B050"
-          />
+            <Text style={styles.label}>Xác nhận mật khẩu</Text>
+            <TextInput
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              mode="outlined"
+              style={styles.input}
+              outlineColor="#00B050"
+              activeOutlineColor="#00B050"
+            />
 
-          <Button
-            mode="contained"
-            onPress={handleResetPassword}
-            style={styles.button}
-            labelStyle={styles.buttonLabel}
-          >
-            Xác nhận
-          </Button>
-        </>
-      )}
-    </View>
+            <Button
+              mode="contained"
+              onPress={handleResetPassword}
+              style={styles.button}
+              labelStyle={styles.buttonLabel}
+            >
+              Xác nhận
+            </Button>
+          </>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
-    flex: 1,
+    flexGrow: 1,
     padding: 24,
     justifyContent: "center",
   },
@@ -216,8 +241,8 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   otpInput: {
-    width: 55,
-    height: 55,
+    width: 50,
+    height: 50,
     backgroundColor: "#F4F4F4",
     borderRadius: 10,
     textAlign: "center",

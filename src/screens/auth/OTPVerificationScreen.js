@@ -5,57 +5,87 @@ import {
   TextInput as RNTextInput,
   TouchableOpacity,
   Alert,
-    Image,
-
+  Image,
 } from "react-native";
 import { Text, Button } from "react-native-paper";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import RegisterStepper from "../../components/RegisterStepper";
+import { useDispatch } from "react-redux";
+import { register, sendOtp } from "../../redux/slices/authSlice";
 
 export default function OTPVerificationScreen() {
   const navigation = useNavigation();
-  const [otp, setOtp] = useState(["", "", "", "", ""]);
+  const dispatch = useDispatch();
+  const route = useRoute();
+  const { email, password, phone, fullName } = route.params;
+
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputs = useRef([]);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (text, index) => {
-    if (/^\d$/.test(text) || text === "") {
+    if (/^[0-9]$/.test(text) || text === "") {
       const newOtp = [...otp];
       newOtp[index] = text;
       setOtp(newOtp);
-      if (text && index < 4) {
+      if (text && index < 5) {
         inputs.current[index + 1]?.focus();
       }
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const fullCode = otp.join("");
-    if (fullCode.length < 5) {
-      Alert.alert("Thiếu mã", "Vui lòng nhập đủ mã xác nhận.");
+    if (fullCode.length < 6) {
+      Alert.alert("Thiếu mã", "Vui lòng nhập đủ mã xác nhận (6 số).");
       return;
     }
-    console.log("OTP đã nhập:", fullCode);
-    navigation.navigate("RegisterSuccess");
+
+    try {
+      setLoading(true);
+      await dispatch(
+        register({
+          email,
+          password,
+          fullName,
+          phoneNumber: phone,
+          otp: fullCode,
+        })
+      ).unwrap();
+
+      setLoading(false);
+      Alert.alert("Thành công", "Tạo tài khoản thành công.");
+      navigation.navigate("RegisterSuccess");
+    } catch (error) {
+      setLoading(false);
+      Alert.alert("Lỗi", error?.message || "Xác nhận OTP thất bại.");
+    }
   };
 
-  const handleResend = () => {
-    Alert.alert("Thông báo", "Đã gửi lại mã xác nhận.");
+  const handleResend = async () => {
+    try {
+      await dispatch(sendOtp(email)).unwrap();
+      Alert.alert("Thành công", "Mã OTP đã được gửi lại.");
+    } catch (error) {
+      Alert.alert("Lỗi", error?.message || "Không thể gửi lại mã OTP.");
+    }
   };
 
   return (
     <View style={styles.container}>
       <Image
-              source={{
-                uri: "https://res.cloudinary.com/dkfykdjlm/image/upload/v1750842738/logobus_vxihzk.png",
-              }}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+        source={{
+          uri: "https://res.cloudinary.com/dkfykdjlm/image/upload/v1750842738/logobus_vxihzk.png",
+        }}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <RegisterStepper step={4} />
 
       <Text style={styles.title}>Nhập mã xác nhận</Text>
       <Text style={styles.subtitle}>
-        Chúng tôi đã gửi cho bạn mã xác nhận vào số điện thoại 0912345678
+        Chúng tôi đã gửi mã xác nhận đến email:{"\n"}
+        <Text style={{ fontWeight: "bold" }}>{email}</Text>
       </Text>
 
       <View style={styles.otpRow}>
@@ -81,6 +111,8 @@ export default function OTPVerificationScreen() {
       <Button
         mode="contained"
         onPress={handleSubmit}
+        loading={loading}
+        disabled={loading}
         style={styles.button}
         labelStyle={{ color: "white", fontWeight: "bold" }}
       >
@@ -97,12 +129,11 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: "center",
   },
-   logo: {
+  logo: {
     width: 80,
     height: 60,
     marginBottom: 16,
-        marginLeft:120
-
+    marginLeft: 120,
   },
   title: {
     fontSize: 20,
@@ -123,8 +154,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   otpInput: {
-    width: 52,
-    height: 58,
+    width: 48,
+    height: 56,
     backgroundColor: "#F5F5F5",
     borderRadius: 8,
     textAlign: "center",
