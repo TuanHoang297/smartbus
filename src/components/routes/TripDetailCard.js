@@ -4,6 +4,14 @@ import { Text, Button } from "react-native-paper";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 export default function TripDetailCard({ trip }) {
+  if (!trip) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>Chưa có chuyến nào được chọn.</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Hành trình của bạn</Text>
@@ -16,12 +24,12 @@ export default function TripDetailCard({ trip }) {
 
       <View style={styles.stationRow}>
         <View style={styles.stationBlock}>
-          <Text style={styles.stationCode}>Trạm C</Text>
+          <Text style={styles.stationCode}>Trạm </Text>
           <Text style={styles.stationName}>{trip.from}</Text>
         </View>
-        <Text style={styles.direction}>Từ</Text>
+        <Text style={styles.direction}>Đến</Text>
         <View style={styles.stationBlock}>
-          <Text style={styles.stationCode}>Trạm D</Text>
+          <Text style={styles.stationCode}>Trạm </Text>
           <Text style={styles.stationName}>{trip.to}</Text>
         </View>
       </View>
@@ -29,12 +37,13 @@ export default function TripDetailCard({ trip }) {
       <View style={styles.fareRow}>
         <Button mode="outlined" icon="account">Vé người lớn</Button>
         <Button mode="contained" style={styles.fareBtn} labelStyle={{ color: "white" }}>
-          {trip.price} vnd
+          <Text style={{ color: "white" }}>{trip.price} VND</Text>
         </Button>
       </View>
 
+
       <Text style={styles.sectionTitle}>Chi tiết chuyến đi</Text>
-      {trip.details.map((item, idx) => (
+      {trip.details?.map((item, idx) => (
         <View key={idx} style={styles.detailItem}>
           <View style={styles.iconCircle}>
             <Icon name={item.icon} size={16} color="white" />
@@ -55,6 +64,15 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 16,
   },
+  emptyContainer: {
+    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#888",
+  },
   title: {
     textAlign: "center",
     fontWeight: "bold",
@@ -74,6 +92,7 @@ const styles = StyleSheet.create({
   note: {
     fontSize: 12,
     color: "#777",
+    maxWidth: "70%",
   },
   stationRow: {
     flexDirection: "row",
@@ -83,6 +102,7 @@ const styles = StyleSheet.create({
   },
   stationBlock: {
     alignItems: "center",
+    flex: 1,
   },
   stationCode: {
     fontSize: 12,
@@ -91,9 +111,11 @@ const styles = StyleSheet.create({
   stationName: {
     fontWeight: "bold",
     fontSize: 13,
+    textAlign: "center",
   },
   direction: {
     color: "#666",
+    paddingHorizontal: 8,
   },
   fareRow: {
     flexDirection: "row",

@@ -31,6 +31,9 @@ export default function RouteSearch({
   const [showTripDetailModal, setShowTripDetailModal] = useState(false);
   const [routeParams, setRouteParams] = useState({ from: "", to: "" });
 
+  // NEW: Trip state được chọn
+  const [selectedTrip, setSelectedTrip] = useState(null);
+
   const handleSubmitRoute = (fromValue, toValue) => {
     setShowSearchHistory(false);
     setRouteParams({ from: fromValue, to: toValue });
@@ -131,7 +134,10 @@ export default function RouteSearch({
                 <RouteCardList
                   from={routeParams.from}
                   to={routeParams.to}
-                  onCardPress={() => setShowTripDetailModal(true)}
+                  onCardPress={(trip) => {
+                    setSelectedTrip(trip);              // ✅ lấy dữ liệu từ card
+                    setShowTripDetailModal(true);
+                  }}
                 />
               </View>
             </TouchableWithoutFeedback>
@@ -141,29 +147,23 @@ export default function RouteSearch({
 
       {/* MODAL: Trip Detail */}
       <Modal visible={showTripDetailModal} transparent animationType="slide">
-        <TouchableWithoutFeedback onPress={() => setShowTripDetailModal(false)}>
+        <TouchableWithoutFeedback onPress={() => {
+          setShowTripDetailModal(false);
+          setSelectedTrip(null);                      // ✅ clear dữ liệu nếu muốn
+        }}>
           <View style={styles.overlay}>
             <TouchableWithoutFeedback>
               <View style={styles.routeSheet}>
                 <IconButton
                   icon="close"
                   size={24}
-                  onPress={() => setShowTripDetailModal(false)}
+                  onPress={() => {
+                    setShowTripDetailModal(false);
+                    setSelectedTrip(null);
+                  }}
                   style={{ alignSelf: "flex-end", margin: 8 }}
                 />
-                <TripDetailCard
-                  trip={{
-                    time: "14:05",
-                    note: "23 phút, không đổi trạm",
-                    from: "Trạm Ngã tư Thủ Đức",
-                    to: "Trạm Đại học FPT",
-                    price: "15.000",
-                    details: [
-                      { icon: "map-marker", label: "Trạm Ngã tư Thủ Đức", note: "Điểm đón" },
-                      { icon: "walk", label: "Đi bộ 242 mét", note: "Mất khoảng 5 phút" },
-                    ],
-                  }}
-                />
+                {selectedTrip && <TripDetailCard trip={selectedTrip} />} {/* ✅ truyền trip động */}
               </View>
             </TouchableWithoutFeedback>
           </View>

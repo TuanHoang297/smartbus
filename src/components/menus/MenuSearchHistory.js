@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
-import { Text, TextInput, Button } from "react-native-paper";
+import { Text, Button } from "react-native-paper";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import AutoCompleteInput from "../AutoCompleteInput";
+import { extractStationsFromRoutes } from "../../services/stationService";
 
 const recentPlaces = [
   { from: "Đại học FPT", to: "Làng đại học" },
@@ -18,13 +20,18 @@ const savedPlaces = [
 export default function MenuSearchHistory({ onConfirm }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [stationSuggestions, setStationSuggestions] = useState([]);
+
+  useEffect(() => {
+    extractStationsFromRoutes().then(setStationSuggestions);
+  }, []);
 
   const handleConfirm = () => {
     if (!from || !to) {
       alert("Vui lòng nhập đầy đủ điểm bắt đầu và điểm đến");
       return;
     }
-    onConfirm?.(from, to); // This will trigger modal in RouteSearch
+    onConfirm?.(from, to);
   };
 
   return (
@@ -33,29 +40,40 @@ export default function MenuSearchHistory({ onConfirm }) {
 
       <View style={styles.inputRow}>
         <Icon name="map-marker-outline" size={20} color="#00B050" />
-        <TextInput
-          value={from}
-          onChangeText={setFrom}
-          placeholder="Chọn điểm bắt đầu"
-          style={styles.input}
-          mode="outlined"
-        />
+        <View style={styles.inputFlex}>
+          <AutoCompleteInput
+            label="Chọn điểm bắt đầu"
+            value={from}
+            onChange={setFrom}
+            suggestions={stationSuggestions}
+            onSelect={setFrom}
+          />
+        </View>
       </View>
 
       <View style={styles.inputRow}>
         <Icon name="map-marker" size={20} color="#00B050" />
-        <TextInput
-          value={to}
-          onChangeText={setTo}
-          placeholder="Bạn đang muốn đi đâu ?"
-          style={styles.input}
-          mode="outlined"
-        />
+        <View style={styles.inputFlex}>
+          <AutoCompleteInput
+            label="Bạn đang muốn đi đâu?"
+            value={to}
+            onChange={setTo}
+            suggestions={stationSuggestions}
+            onSelect={setTo}
+          />
+        </View>
       </View>
 
       <Text style={styles.section}>Chuyến đi gần đây</Text>
       {recentPlaces.map((place, idx) => (
-        <TouchableOpacity key={idx} style={styles.recentItem}>
+        <TouchableOpacity
+          key={idx}
+          style={styles.recentItem}
+          onPress={() => {
+            setFrom(place.from);
+            setTo(place.to);
+          }}
+        >
           <Icon name="history" color="white" size={24} />
           <View style={{ marginLeft: 10 }}>
             <Text style={styles.recentFrom}>{place.from}</Text>
@@ -67,7 +85,11 @@ export default function MenuSearchHistory({ onConfirm }) {
       <Text style={styles.section}>Địa điểm đã lưu</Text>
       <View style={styles.savedRow}>
         {savedPlaces.map((item, idx) => (
-          <TouchableOpacity key={idx} style={styles.savedBtn}>
+          <TouchableOpacity
+            key={idx}
+            style={styles.savedBtn}
+            onPress={() => setFrom(item.label)}
+          >
             <Icon name={item.icon} size={20} color="#00B050" />
             <Text style={styles.savedLabel}>{item.label}</Text>
           </TouchableOpacity>
@@ -103,10 +125,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  input: {
+  inputFlex: {
     flex: 1,
     marginLeft: 8,
-    backgroundColor: "white",
   },
   section: {
     marginTop: 16,

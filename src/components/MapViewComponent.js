@@ -1,67 +1,94 @@
-import React, { useState } from "react";
-import { StyleSheet, View, Modal, TouchableWithoutFeedback } from "react-native";
+import React, { useState, useEffect } from "react";
+import { StyleSheet, View, Modal, TouchableWithoutFeedback, ActivityIndicator, Alert, Button, TouchableOpacity } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Text } from "react-native-paper";
 import MenuLiveTransportInfo from "./menus/MenuLiveTransportInfo";
+import { getNearbyStationMarkers, clearStationCache } from "../services/stationService";
 
 const MapViewComponent = () => {
   const [selectedMarker, setSelectedMarker] = useState(null);
+  const [markers, setMarkers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const markers = [
-    { id: "026", title: "Bus 026", latitude: 10.762622, longitude: 106.660172 },
-    { id: "110", title: "Bus 110", latitude: 10.763622, longitude: 106.661172 },
-    { id: "161", title: "Bus 161", latitude: 10.764622, longitude: 106.662172 },
-    { id: "00L", title: "Bus 00L", latitude: 10.761622, longitude: 106.663172 },
-  ];
+  const loadStations = async () => {
+    setLoading(true);
+    try {
+      const nearbyStations = await getNearbyStationMarkers(5); // bán kính 5km
+      setMarkers(nearbyStations);
+    } catch (err) {
+      Alert.alert("Lỗi", "Không thể tải các trạm gần bạn.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStations();
+  }, []);
+
+  const handleRefresh = async () => {
+    Alert.alert(
+      "Xác nhận",
+      "Bạn có chắc muốn làm mới dữ liệu trạm?",
+      [
+        { text: "Huỷ" },
+        {
+          text: "Làm mới",
+          onPress: async () => {
+            await clearStationCache();
+            await loadStations();
+          },
+        },
+      ]
+    );
+  };
 
   return (
-    <View style={styles.mapContainer}>
+    <View>
+      
+
+      <View style={styles.mapContainer}>
+  {loading ? (
+    <ActivityIndicator size="large" color="#00B050" style={{ marginTop: 16 }} />
+  ) : (
+    <>
+      {/* Nút làm mới nằm phía trên giữa Map */}
+      <View style={styles.refreshOverlay}>
+  <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+    <Text style={styles.refreshText}>🔄</Text>
+  </TouchableOpacity>
+</View>
+
+
       <MapView
         style={StyleSheet.absoluteFill}
         provider={PROVIDER_GOOGLE}
         initialRegion={{
           latitude: 10.762622,
           longitude: 106.660172,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitudeDelta: 0.03,
+          longitudeDelta: 0.03,
         }}
         showsUserLocation
       >
         {markers.map((marker) => (
           <Marker
-            key={marker.id}
-            coordinate={{
-              latitude: marker.latitude,
-              longitude: marker.longitude,
-            }}
-            title={marker.title}
+            key={marker.name}
+            coordinate={marker.coords}
+            title={marker.name}
             pinColor="#00B050"
-            onPress={() => setSelectedMarker(marker.id)}
+            onPress={() => setSelectedMarker(marker)}
           >
             <View style={styles.marker}>
-              <Text style={styles.markerText}>{marker.id}</Text>
+              <Text style={styles.markerText}>🚌</Text>
             </View>
           </Marker>
         ))}
       </MapView>
+    </>
+  )}
+</View>
 
-      {/* Modal hiển thị thông tin xe bus */}
-      <Modal
-        visible={!!selectedMarker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSelectedMarker(null)}
-      >
-        <TouchableWithoutFeedback onPress={() => setSelectedMarker(null)}>
-          <View style={styles.overlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.modalWrapper}>
-                <MenuLiveTransportInfo onConfirm={() => setSelectedMarker(null)} />
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
     </View>
   );
 };
@@ -101,4 +128,32 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 10,
   },
+ refreshOverlay: {
+  position: "absolute",
+  top: 10,
+  left: 0,
+  right: 0,
+  alignItems: "center",
+  zIndex: 999,
+},
+refreshButton: {
+  backgroundColor: "#ccc",
+  borderRadius: 24,
+  padding: 8,
+  width: 40,
+  height: 40,
+  justifyContent: "center",
+  alignItems: "center",
+  elevation: 4,
+  shadowColor: "#000",
+  shadowOpacity: 0.2,
+  shadowRadius: 4,
+  shadowOffset: { width: 0, height: 2 },
+},
+refreshText: {
+  fontSize: 20,
+  color: "white",
+},
+
+
 });
