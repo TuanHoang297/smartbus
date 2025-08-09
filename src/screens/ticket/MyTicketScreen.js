@@ -17,6 +17,9 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import api from "../../services/api"; // axios baseURL: https://smartbus-68ae.onrender.com/api
 
+// SVG: mép xé góc
+import Svg, { Path } from "react-native-svg";
+
 // --- JWT helpers: FE tự decode ---
 function base64UrlDecode(input) {
   try {
@@ -66,6 +69,41 @@ function getUserIdFromToken(token) {
   );
 }
 
+// ---- SVG mép xé răng cưa (góc phải-trên) ----
+const TornCornerSVG = ({ fill = "#FFFFFF", stroke = "#E5E7EB" }) => {
+  // ViewBox 0..72: vẽ mảng răng cưa phủ lên góc phải-trên
+  // Điều chỉnh các điểm Lx,y để răng cưa dày/mỏng hơn
+  return (
+    <View style={styles.tornCornerWrap} pointerEvents="none">
+      <Svg width={72} height={72} viewBox="0 0 72 72">
+        <Path
+          d="
+            M72,0 
+            L72,44
+            L62,38 
+            L57,44 
+            L52,38 
+            L47,44 
+            L42,38 
+            L37,44 
+            L32,38 
+            L27,44 
+            L22,38
+            L0,38
+            L0,0
+            Z
+          "
+          fill={fill}
+          stroke={stroke}
+          strokeWidth="2"
+        />
+      </Svg>
+      {/* Bóng nhẹ để mép xé nổi khối */}
+      <View style={styles.tornShadow} />
+    </View>
+  );
+};
+
 export default function MyTicketScreen({ navigation }) {
   const [tab, setTab] = useState("single"); // 'single' | 'monthly'
   const [usableCards, setUsableCards] = useState([]); // cùng ngày
@@ -106,6 +144,7 @@ export default function MyTicketScreen({ navigation }) {
       typeof t.Price === "number" ? t.Price : Number(String(t.Price || 0));
     return {
       id: String(t.Qrcode || Math.random()),
+      qrcode: t.Qrcode || null,
       time: formatTime(issued),
       dateText: formatDateVN(issued),
       from: t.RouteName || "—",
@@ -119,6 +158,7 @@ export default function MyTicketScreen({ navigation }) {
       rawIssued: issued,
       rawExpired: t.ExpiredAt ? new Date(t.ExpiredAt) : null,
       ticketTypeName: t.TicketTypeName || "",
+      raw: t, // vé gốc
     };
   };
 
@@ -196,12 +236,11 @@ export default function MyTicketScreen({ navigation }) {
     [usedCards, tab]
   );
 
-  // ---- Render card: tránh lặp tên tuyến ----
-  const renderTicketCard = (ticket) => {
+  // ---- Render card ----
+  const CardContent = ({ ticket }) => {
     const sameLine = !ticket.to || ticket.from === ticket.to;
-
     return (
-      <View style={styles.ticketCard} key={ticket.id}>
+      <View style={styles.ticketCard}>
         <View style={styles.ticketHeader}>
           <Text style={styles.time}>{ticket.time}</Text>
           <MaterialIcons name="directions-bus" size={20} color="#fff" />
@@ -232,6 +271,34 @@ export default function MyTicketScreen({ navigation }) {
       </View>
     );
   };
+
+  const renderUsableCard = (ticket) => (
+    <TouchableOpacity
+      key={ticket.id}
+      activeOpacity={0.9}
+      onPress={() =>
+        navigation.navigate("TicketDetail", {
+          ticket, // card đã map
+          raw: ticket.raw, // vé gốc
+          qrcode: ticket.qrcode, // chuỗi QR (nếu có)
+        })
+      }
+    >
+      <CardContent ticket={ticket} />
+    </TouchableOpacity>
+  );
+
+  // Vé đã sử dụng: mờ + mép xé góc bằng SVG
+  const renderUsedCard = (ticket) => (
+    <View key={ticket.id} style={styles.usedTicketWrapper}>
+      {/* Mép xé (góc phải-trên) */}
+      <TornCornerSVG />
+      {/* Mờ nội dung vé */}
+      <View style={{ opacity: 0.55 }}>
+        <CardContent ticket={ticket} />
+      </View>
+    </View>
+  );
 
   return (
     <View style={{ flex: 1 }}>
@@ -304,7 +371,7 @@ export default function MyTicketScreen({ navigation }) {
             {usableToRender.length === 0 ? (
               <Text>Chưa có vé khả dụng cho tab này.</Text>
             ) : (
-              usableToRender.map(renderTicketCard)
+              usableToRender.map(renderUsableCard)
             )}
 
             {/* Vé đã sử dụng */}
@@ -317,7 +384,7 @@ export default function MyTicketScreen({ navigation }) {
             {usedToRender.length === 0 ? (
               <Text>Chưa có vé đã sử dụng cho tab này.</Text>
             ) : (
-              usedToRender.map(renderTicketCard)
+              usedToRender.map(renderUsedCard)
             )}
           </>
         )}
@@ -418,6 +485,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    overflow: "hidden",
   },
   ticketHeader: {
     flexDirection: "row",
@@ -472,5 +540,34 @@ const styles = StyleSheet.create({
     color: "#000",
     fontSize: 16,
     fontWeight: "700",
+  },
+
+  // --- Mép xé + wrapper cho vé đã dùng ---
+  usedTicketWrapper: {
+    position: "relative",
+    marginBottom: 12,
+  },
+  tornCornerWrap: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 72,
+    height: 72,
+    zIndex: 10,
+  },
+  tornShadow: {
+    position: "absolute",
+    top: 40,
+    right: 8,
+    width: 40,
+    height: 8,
+    backgroundColor: "rgba(0,0,0,0.08)",
+    borderRadius: 4,
+    transform: [{ rotate: "12deg" }],
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
 });

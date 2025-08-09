@@ -2,12 +2,17 @@ import React from "react";
 import { View, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { IconButton, Badge } from "react-native-paper";
+import { useSelector } from "react-redux";
+import { selectUnreadCount } from "../redux/slices/notificationsSlice"; // 👈 chỉnh path cho đúng
 
 export default function Navbar({ showBack = false, avatarUrl }) {
   const navigation = useNavigation();
+  const unreadCount = useSelector(selectUnreadCount);
 
   const fallbackAvatar =
     "https://res.cloudinary.com/dkfykdjlm/image/upload/v1750849062/default-avatar_dgjf0v.png";
+
+  const badgeText = unreadCount > 99 ? "99+" : String(unreadCount);
 
   return (
     <View style={styles.container}>
@@ -33,7 +38,6 @@ export default function Navbar({ showBack = false, avatarUrl }) {
         </TouchableOpacity>
       </View>
 
-
       <View style={styles.right}>
         <View>
           <IconButton
@@ -44,7 +48,11 @@ export default function Navbar({ showBack = false, avatarUrl }) {
             style={styles.iconWrapper}
             onPress={() => navigation.navigate("NotificationPanel")}
           />
-          <Badge style={styles.badge} size={8} />
+          {unreadCount > 0 && (
+            <Badge style={styles.badge} size={16}>
+              {badgeText}
+            </Badge>
+          )}
         </View>
 
         <TouchableOpacity
@@ -56,7 +64,6 @@ export default function Navbar({ showBack = false, avatarUrl }) {
             style={styles.avatar}
           />
         </TouchableOpacity>
-
       </View>
     </View>
   );
@@ -72,38 +79,17 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     paddingBottom: 12,
   },
-  left: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  backButton: {
-    marginRight: 6,
-  },
-  logo: {
-    width: 120,
-    height: 40,
-  },
-  right: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  iconWrapper: {
-    marginRight: 6,
-  },
+  left: { flexDirection: "row", alignItems: "center" },
+  backButton: { marginRight: 6 },
+  logo: { width: 120, height: 40 },
+  right: { flexDirection: "row", alignItems: "center" },
+  iconWrapper: { marginRight: 6 },
   badge: {
     position: "absolute",
-    top: 6,
-    right: 6,
-    backgroundColor: "#00B050",
+    top: 4,
+    right: 4,
+    backgroundColor: "#FF3B30", // đỏ để nổi bật
   },
-  avatarWrapper: {
-    backgroundColor: "#000",
-    borderRadius: 24,
-    padding: 6,
-  },
-  avatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-  },
+  avatarWrapper: { backgroundColor: "#000", borderRadius: 24, padding: 6 },
+  avatar: { width: 24, height: 24, borderRadius: 12 },
 });

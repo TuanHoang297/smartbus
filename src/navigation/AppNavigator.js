@@ -22,10 +22,11 @@ import HomeScreen from "../screens/home/HomeScreen"; // Tạm thời nếu bạn
 import NotificationPanel from "../components/NotificationPanel";
 import { RouteLookupScreen } from "../screens/home";
 import RouteDetailScreen from "../components/routes/RouteDetailScreen";
-import { BuyTicketScreen, MyTicketScreen } from "../screens/ticket";
+import { BuyTicketScreen, MyTicketScreen, TicketDetailScreen } from "../screens/ticket";
 import ProfileScreen from "../screens/profile/ProfileScreen";
 import EditProfileScreen from "../screens/profile/EditProfileScreen";
 import PaymentWebViewScreen from "../screens/payment/PaymentWebViewScreen";
+import TrackingTransportInfo from "../components/menus/TrackingTransportInfo";
 
 const Stack = createNativeStackNavigator();
 
@@ -53,9 +54,12 @@ export default function AppNavigator() {
         <Stack.Screen name="RouteLookup" component={RouteLookupScreen} />
         <Stack.Screen name="RouteDetail" component={RouteDetailScreen} />
 
+        <Stack.Screen name="TrackingTransportInfo" component={TrackingTransportInfo} options={{ headerShown: false, presentation: "modal", }} />
+
         <Stack.Screen name="TicketsScreen" component={MyTicketScreen} />
         <Stack.Screen name="BuyTicketScreen" component={BuyTicketScreen} />
         <Stack.Screen name="PaymentWebViewScreen" component={PaymentWebViewScreen} />
+        <Stack.Screen name="TicketDetail" component={TicketDetailScreen} options={{ headerShown: false }} />
 
         <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
         <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />

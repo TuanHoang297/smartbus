@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -6,15 +6,22 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
+  Image,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { IconButton } from "react-native-paper";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { getBusRouteDetail, getBusRouteLocations } from "../../services/busRouteService";
+import {
+  getBusRouteDetail,
+  getBusRouteLocations,
+} from "../../services/busRouteService";
+import { geocodeStation } from "../../services/stationService";
 
 const { height } = Dimensions.get("window");
-
 const tabs = ["Biểu đồ giờ", "Trạm dừng", "Thông tin", "Giá vé"];
+const BUS_ICON_URL =
+  "https://img.icons8.com/?size=100&id=9351&format=png&color=00B050";
 
 export default function RouteDetailScreen() {
   const navigation = useNavigation();
@@ -22,26 +29,63 @@ export default function RouteDetailScreen() {
   const { id, code } = routeParams.params;
 
   const [routeData, setRouteData] = useState(null);
-  const [locations, setLocations] = useState([]);
+  const [markers, setMarkers] = useState([]);
   const [activeTab, setActiveTab] = useState("Biểu đồ giờ");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
-  try {
-    const [routeDetail, locationData] = await Promise.all([
-      getBusRouteDetail(id),
-      getBusRouteLocations(code),
-    ]);
-    setRouteData(routeDetail);
-    setLocations(locationData.Locations || []);
-  } catch (error) {
-    console.error("Fetch route detail or locations failed", error);
-  }
-};
+    setLoading(true);
+    try {
+      const [routeDetail, locationData] = await Promise.all([
+        getBusRouteDetail(id),
+        getBusRouteLocations(code),
+      ]);
 
+      setRouteData(routeDetail);
+
+      const apiLocations = locationData?.Locations || [];
+      if (apiLocations.length > 0) {
+        const mapped = apiLocations
+          .filter(
+            (loc) =>
+              typeof loc.Latitude === "number" &&
+              typeof loc.Longitude === "number"
+          )
+          .map((loc) => ({
+            name: loc.StopName || "",
+            latitude: loc.Latitude,
+            longitude: loc.Longitude,
+          }));
+        setMarkers(mapped);
+      } else {
+        const stopNames = routeDetail?.StopNames || [];
+        const uniqueStops = Array.from(
+          new Set(stopNames.filter((s) => !!s && s.trim().length > 0))
+        );
+        const results = await Promise.all(
+          uniqueStops.map(async (name) => {
+            const g = await geocodeStation(name);
+            if (!g) return null;
+            return {
+              name: g.name,
+              latitude: g.coords.latitude,
+              longitude: g.coords.longitude,
+            };
+          })
+        );
+        setMarkers(results.filter(Boolean));
+      }
+    } catch (error) {
+      console.error("Fetch route detail or locations failed", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const isPastTrip = (tripHour) => {
     const [startTime] = tripHour.split(" - ");
@@ -67,16 +111,10 @@ export default function RouteDetailScreen() {
                 return (
                   <View
                     key={index}
-                    style={[
-                      styles.tripItem,
-                      isPast && styles.tripItemPast,
-                    ]}
+                    style={[styles.tripItem, isPast && styles.tripItemPast]}
                   >
                     <Text
-                      style={[
-                        styles.tripText,
-                        isPast && styles.tripTextPast,
-                      ]}
+                      style={[styles.tripText, isPast && styles.tripTextPast]}
                     >
                       {time}
                     </Text>
@@ -103,30 +141,43 @@ export default function RouteDetailScreen() {
           <ScrollView style={styles.scrollTab}>
             <View style={styles.infoBox}>
               <View style={styles.infoItem}>
-                <Text style={styles.infoText}>Tuyến số: {routeData.RouteCode}</Text>
+                <Text style={styles.infoText}>
+                  Tuyến số: {routeData.RouteCode}
+                </Text>
               </View>
               <View style={styles.infoItem}>
-                <Text style={styles.infoText}>Tên tuyến: {routeData.RouteName}</Text>
+                <Text style={styles.infoText}>
+                  Tên tuyến: {routeData.RouteName}
+                </Text>
               </View>
               <View style={styles.infoItem}>
-                <Text style={styles.infoText}>Khoảng cách: {routeData.DistanceKm} km</Text>
+                <Text style={styles.infoText}>
+                  Khoảng cách: {routeData.DistanceKm} km
+                </Text>
               </View>
               <View style={styles.infoItem}>
                 <Text style={styles.infoText}>Loại xe: {routeData.BusType}</Text>
               </View>
               <View style={styles.infoItem}>
                 <Text style={styles.infoText}>
-                  Thời gian hoạt động: {routeData.StartTime} - {routeData.EndTime}
+                  Thời gian hoạt động: {routeData.StartTime} -{" "}
+                  {routeData.EndTime}
                 </Text>
               </View>
               <View style={styles.infoItem}>
-                <Text style={styles.infoText}>Số chuyến/ngày: {routeData.TripsPerDay}</Text>
+                <Text style={styles.infoText}>
+                  Số chuyến/ngày: {routeData.TripsPerDay}
+                </Text>
               </View>
               <View style={styles.infoItem}>
-                <Text style={styles.infoText}>Thời lượng: {routeData.TripDuration} phút</Text>
+                <Text style={styles.infoText}>
+                  Thời lượng: {routeData.TripDuration} phút
+                </Text>
               </View>
               <View style={styles.infoItem}>
-                <Text style={styles.infoText}>Tần suất: {routeData.TripInterval}</Text>
+                <Text style={styles.infoText}>
+                  Tần suất: {routeData.TripInterval}
+                </Text>
               </View>
             </View>
           </ScrollView>
@@ -148,26 +199,47 @@ export default function RouteDetailScreen() {
     }
   };
 
+  const initialRegion = useMemo(() => {
+    if (markers.length > 0) {
+      return {
+        latitude: markers[0].latitude,
+        longitude: markers[0].longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      };
+    }
+    return {
+      latitude: 10.7769,
+      longitude: 106.7009,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    };
+  }, [markers]);
+
   return (
     <View style={styles.container}>
-      <MapView
-        style={styles.map}
-        initialRegion={{
-          latitude: 10.7769,
-          longitude: 106.7009,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }}
-      >
-        {locations.map((loc, index) => (
+      <MapView style={styles.map} initialRegion={initialRegion}>
+        {markers.map((m, index) => (
           <Marker
-            key={index}
-            coordinate={{
-              latitude: loc.Latitude,
-              longitude: loc.Longitude,
-            }}
-            title={loc.StopName}
-          />
+            key={`${m.name}-${index}`}
+            coordinate={{ latitude: m.latitude, longitude: m.longitude }}
+            title={m.name}
+            onPress={() =>
+              navigation.navigate("TrackingTransportInfo", {
+                latitude: m.latitude,
+                longitude: m.longitude,
+                title: m.name,
+                code: routeData?.RouteCode ?? "",
+                simulate: true, // bật mô phỏng di chuyển nếu muốn
+              })
+            }
+          >
+            <Image
+              source={{ uri: BUS_ICON_URL }}
+              style={{ width: 30, height: 30 }}
+              resizeMode="contain"
+            />
+          </Marker>
         ))}
       </MapView>
 
@@ -176,13 +248,11 @@ export default function RouteDetailScreen() {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <IconButton icon="arrow-left" size={24} />
           </TouchableOpacity>
-          <Text style={styles.routeName}>
-            {routeData?.RouteName || "Đang tải..."}
-          </Text>
-          <TouchableOpacity>
-            <IconButton icon="heart-outline" />
-          </TouchableOpacity>
         </View>
+
+        <Text style={styles.routeName}>
+          {routeData?.RouteName || "Đang tải..."}
+        </Text>
 
         <View style={styles.tabRow}>
           {tabs.map((tab) => (
@@ -199,7 +269,15 @@ export default function RouteDetailScreen() {
           ))}
         </View>
 
-        <View style={styles.tabContent}>{renderTabContent()}</View>
+        <View style={styles.tabContent}>
+          {loading ? (
+            <View style={{ paddingVertical: 24 }}>
+              <ActivityIndicator />
+            </View>
+          ) : (
+            renderTabContent()
+          )}
+        </View>
       </View>
     </View>
   );
@@ -227,8 +305,8 @@ const styles = StyleSheet.create({
   routeName: {
     fontWeight: "bold",
     fontSize: 16,
-    flex: 1,
     textAlign: "center",
+    marginTop: 4,
   },
   tabRow: {
     flexDirection: "row",
@@ -252,11 +330,6 @@ const styles = StyleSheet.create({
   },
   scrollTab: {
     paddingHorizontal: 12,
-  },
-  rowText: {
-    paddingVertical: 4,
-    fontSize: 14,
-    color: "#333",
   },
   tripGrid: {
     flexDirection: "row",
@@ -291,18 +364,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#333",
   },
-  ticketBox: {
-    paddingHorizontal: 12,
-    gap: 6,
-  },
   infoItem: {
     backgroundColor: "#f9f9f9",
     padding: 10,
     borderRadius: 8,
     marginBottom: 8,
-  },
-  ticketText: {
-    fontSize: 14,
-    color: "#333",
   },
 });
