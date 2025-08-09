@@ -17,7 +17,10 @@ export default function PaymentWebViewScreen() {
   const { params = {} } = useRoute();
   const { payUrl, html, meta } = params || {};
   const [loading, setLoading] = useState(true);
+
   const seenRef = useRef(false);
+  const latestUrlRef = useRef("");
+  const successUrlRef = useRef(null); // nhớ URL success khi đã điều hướng tới đó
 
   const source = useMemo(() => {
     if (html) return { html };
@@ -29,30 +32,43 @@ export default function PaymentWebViewScreen() {
     if (seenRef.current) return;
     seenRef.current = true;
 
-    // ✅ Stack của bạn có route "TicketsScreen" → reset thẳng về đó
     navigation.reset({
       index: 0,
       routes: [{ name: "TicketsScreen", params: { orderCode, meta, url } }],
     });
   };
 
-  // Chặn trang success trước khi WebView tải (tránh màn trắng in JSON)
-  const handleShouldStart = (request) => {
-    const url = request?.url || "";
-    if (isPayOSSuccessUrl(url)) {
-      const code = getOrderCode(url);
-      setTimeout(() => goTickets(code, url), 0);
-      return false; // CHẶN không cho WebView tải trang success
-    }
-    return true;
-  };
-
-  // Fallback nếu có redirect đã tải xong
+  // Khi URL thay đổi, ghi lại URL; nếu là success thì đánh dấu
   const handleNavChange = (navState) => {
     const url = navState?.url || "";
+    latestUrlRef.current = url;
+
+    if (isPayOSSuccessUrl(url)) {
+      successUrlRef.current = url;
+      // Không navigate ở đây; chờ trang success load xong (onLoadEnd / progress=1)
+    }
+  };
+
+  // Khi một trang kết thúc load, nếu đó là success → điều hướng
+  const handleLoadEnd = () => {
+    setLoading(false);
+    const url = latestUrlRef.current;
+
     if (isPayOSSuccessUrl(url)) {
       const code = getOrderCode(url);
-      goTickets(code, url);
+      // (Tùy backend) thêm một nhịp nhỏ để đảm bảo server đã tạo vé xong
+      setTimeout(() => goTickets(code, url), 300);
+    }
+  };
+
+  // Có thể dùng thêm onLoadProgress để chắc chắn đã 100%
+  const handleLoadProgress = ({ nativeEvent }) => {
+    const { progress, url } = nativeEvent || {};
+    latestUrlRef.current = url || latestUrlRef.current;
+
+    if (progress === 1 && isPayOSSuccessUrl(latestUrlRef.current)) {
+      const code = getOrderCode(latestUrlRef.current);
+      setTimeout(() => goTickets(code, latestUrlRef.current), 0);
     }
   };
 
@@ -67,11 +83,13 @@ export default function PaymentWebViewScreen() {
       <WebView
         source={source}
         originWhitelist={["*"]}
-        onShouldStartLoadWithRequest={handleShouldStart}
+        // ❌ KHÔNG chặn success nữa
+        // onShouldStartLoadWithRequest={handleShouldStart}
         onNavigationStateChange={handleNavChange}
-        setSupportMultipleWindows={false}
         onLoadStart={() => setLoading(true)}
-        onLoadEnd={() => setLoading(false)}
+        onLoadEnd={handleLoadEnd}
+        onLoadProgress={handleLoadProgress}
+        setSupportMultipleWindows={false}
         startInLoadingState
         renderLoading={() => (
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
@@ -80,10 +98,17 @@ export default function PaymentWebViewScreen() {
         )}
       />
       {loading && (
-        <View style={{
-          position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
-          alignItems: "center", justifyContent: "center"
-        }}>
+        <View
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <ActivityIndicator />
         </View>
       )}
