@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
   Modal,
+  ActivityIndicator, // 👈 thêm
 } from "react-native";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import Navbar from "../../components/Navbar";
@@ -19,7 +20,7 @@ import api from "../../services/api";
 import { Picker } from "@react-native-picker/picker";
 import { useFocusEffect } from "@react-navigation/native";
 
-// ==== Polyfill atob/btoa cho React Native (giống NotificationPanel) ====
+// ==== Polyfill atob/btoa ====
 import { decode as _atob, encode as _btoa } from "base-64";
 if (typeof global.atob === "undefined") global.atob = _atob;
 if (typeof global.btoa === "undefined") global.btoa = _btoa;
@@ -79,6 +80,8 @@ export default function ProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [tickets, setTickets] = useState([]);
 
+  const [profileLoading, setProfileLoading] = useState(false); // 👈 thêm
+
   const userId = useMemo(() => getUserIdFromToken(token), [token]);
 
   const dateRangeLabel = useMemo(() => {
@@ -97,6 +100,7 @@ export default function ProfileScreen({ navigation }) {
       return;
     }
     try {
+      setProfileLoading(true); // 👈 bật loader
       const res = await api.get(`/users/${userId}?month=${selectedMonth}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -104,6 +108,8 @@ export default function ProfileScreen({ navigation }) {
     } catch (e) {
       console.log(e);
       Alert.alert("Lỗi", "Không tải được thông tin người dùng");
+    } finally {
+      setProfileLoading(false); // 👈 tắt loader
     }
   };
 
@@ -163,40 +169,48 @@ export default function ProfileScreen({ navigation }) {
           end={{ x: 1, y: 1 }}
           style={styles.headerCard}
         >
-          <View style={styles.headerCard}>
-            <View style={styles.avatarWrapper}>
-              <Image
-                source={
-                  profile?.ImageUrl
-                    ? { uri: profile.ImageUrl }
-                    : require("../../../assets/spiderman.png")
-                }
-                style={styles.avatar}
-              />
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() =>
-                  navigation.navigate("EditProfileScreen", {
-                    userId,
-                    initialData: {
-                      username: profile?.UserName || profile?.Username || "",
-                      fullName: profile?.FullName || "",
-                      phoneNumber: profile?.PhoneNumber || "",
-                      email: profile?.Email || "",
-                      url_avatar: profile?.ImageUrl || "",
-                    },
-                  })
-                }
-              >
-                <Feather name="edit-3" size={14} color="#000" />
-              </TouchableOpacity>
+          {/* 👇 khi đang load profile: show spinner thay vì avatar/tên */}
+          {profileLoading ? (
+            <View style={styles.headerLoading}>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.headerLoadingText}>Đang tải hồ sơ…</Text>
             </View>
-            <Text style={styles.username}>{profile?.FullName || "Chưa có tên"}</Text>
-            <View style={styles.phoneContainer}>
-              <Ionicons name="copy-outline" size={16} color="#4CAF50" />
-              <Text style={styles.phoneText}>{profile?.PhoneNumber || "Chưa có số"}</Text>
+          ) : (
+            <View style={styles.headerCard}>
+              <View style={styles.avatarWrapper}>
+                <Image
+                  source={
+                    profile?.ImageUrl
+                      ? { uri: profile.ImageUrl }
+                      : require("../../../assets/spiderman.png")
+                  }
+                  style={styles.avatar}
+                />
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() =>
+                    navigation.navigate("EditProfileScreen", {
+                      userId,
+                      initialData: {
+                        username: profile?.UserName || profile?.Username || "",
+                        fullName: profile?.FullName || "",
+                        phoneNumber: profile?.PhoneNumber || "",
+                        email: profile?.Email || "",
+                        url_avatar: profile?.ImageUrl || "",
+                      },
+                    })
+                  }
+                >
+                  <Feather name="edit-3" size={14} color="#000" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.username}>{profile?.FullName || "Chưa có tên"}</Text>
+              <View style={styles.phoneContainer}>
+                <Ionicons name="copy-outline" size={16} color="#4CAF50" />
+                <Text style={styles.phoneText}>{profile?.PhoneNumber || "Chưa có số"}</Text>
+              </View>
             </View>
-          </View>
+          )}
         </LinearGradient>
 
         {/* Hành trình bạn theo dõi (kéo ngang) */}
@@ -349,6 +363,15 @@ const styles = StyleSheet.create({
     paddingTop: 15,
     paddingBottom: 15,
   },
+  // 👇 style cho trạng thái loading header
+  headerLoading: {
+    height: 150,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerLoadingText: { color: "#fff", fontSize: 13 },
+
   avatarWrapper: {
     position: "relative",
     width: 90,

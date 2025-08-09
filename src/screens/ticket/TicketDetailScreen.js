@@ -63,7 +63,7 @@ export default function TicketDetailScreen({ route }) {
           end={{ x: 1, y: 1 }}
           style={styles.header}
         >
-          <Text style={styles.headerTitle}>Mua vé một chiều</Text>
+          <Text style={styles.headerTitle}>Đã mua vé</Text>
           <View style={styles.headerRow}>
             <Text style={styles.price}>{price.toLocaleString("vi-VN")} vnd</Text>
             <View style={styles.badge}>

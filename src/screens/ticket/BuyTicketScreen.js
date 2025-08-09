@@ -215,7 +215,7 @@ export default function BuyTicketScreen() {
       return;
     }
 
-    // gom các vé đã chọn
+    // Gom các vé đã chọn -> danh sách Items
     const selectedTickets = [];
     ticketOptions.forEach((o, i) => {
       const key = makeKey(o, i);
@@ -224,21 +224,14 @@ export default function BuyTicketScreen() {
           routesParam.find((r) => String(r?.routeId) === String(o?.routeId)) || null;
         selectedTickets.push({
           ticketType: o.raw, // { TicketTypeId, TicketName, Price, ... }
-          ticketUI: o, // { routeId, id, title, price, ... }
-          route: chosenRoute, // { routeId, routeName, ... }
+          ticketUI: o,       // { routeId, id, title, price, ... }
+          route: chosenRoute // { routeId, routeName, ... }
         });
       }
     });
+
     console.log("🧾 [BuyTicketScreen] selectedTickets:", selectedTickets);
     if (!selectedTickets.length) return;
-
-    const first = selectedTickets[0]; // API hiện tại xử lý 1 vé/lần
-    if (selectedTickets.length > 1) {
-      Alert.alert(
-        "Thanh toán từng vé",
-        "Tạm thời chỉ hỗ trợ thanh toán 1 loại vé mỗi lần. Sẽ dùng lựa chọn đầu tiên."
-      );
-    }
 
     console.log("🔑 [BuyTicketScreen] userId (final) =", userId);
     if (!userId) {
@@ -247,18 +240,37 @@ export default function BuyTicketScreen() {
       return;
     }
 
+    // Chuẩn hoá payload mới: { UserId, Items: [{ RouteId, TicketTypeId }] }
+    // Đồng thời loại bỏ item thiếu dữ liệu & dedupe theo (RouteId, TicketTypeId)
+    const seenPair = new Set();
+    const Items = selectedTickets
+      .map((t) => {
+        const RouteId = String(t?.ticketUI?.routeId ?? t?.route?.routeId ?? "");
+        const TicketTypeId = Number(
+          t?.ticketType?.TicketTypeId ?? t?.ticketUI?.id ?? 0
+        );
+        return { RouteId, TicketTypeId };
+      })
+      .filter((it) => it.RouteId && it.TicketTypeId > 0)
+      .filter((it) => {
+        const k = `${it.RouteId}#${it.TicketTypeId}`;
+        if (seenPair.has(k)) return false;
+        seenPair.add(k);
+        return true;
+      });
+
     const payload = {
       UserId: Number(userId),
-      RouteId: String(first?.ticketUI?.routeId ?? first?.route?.routeId ?? ""),
-      TicketTypeId: Number(first?.ticketType?.TicketTypeId ?? first?.ticketUI?.id ?? 0),
+      Items,
     };
-    console.log("📤 [BuyTicketScreen] create-payment payload:", payload);
 
-    if (!payload.RouteId || !payload.TicketTypeId) {
+    if (!Items.length) {
       Alert.alert("Thiếu dữ liệu vé", "Không xác định được RouteId / TicketTypeId.");
-      console.log("❌ [BuyTicketScreen] invalid payload.");
+      console.log("❌ [BuyTicketScreen] invalid Items payload.", payload);
       return;
     }
+
+    console.log("📤 [BuyTicketScreen] create-payment payload:", payload);
 
     (async () => {
       try {
@@ -266,7 +278,7 @@ export default function BuyTicketScreen() {
         const res = await createPayment(payload);
         console.log("✅ [BuyTicketScreen] createPayment response:", res);
 
-        // ✅ ƯU TIÊN checkoutUrl từ PayOS
+        // ✅ ƯU TIÊN checkoutUrl (PayOS)
         const checkoutUrl =
           res?.checkoutUrl ||
           res?.data?.checkoutUrl ||
@@ -282,13 +294,10 @@ export default function BuyTicketScreen() {
         console.log("🔗 [BuyTicketScreen] payUrl:", payUrl);
         console.log("🧩 [BuyTicketScreen] has html:", !!html);
 
+        const meta = { selections: selectedTickets, userId: Number(userId) };
+
         if (checkoutUrl) {
-          const navParams = {
-            payUrl: checkoutUrl, // mở bằng WebView
-            html: null,
-            returnUrl: null,
-            meta: { selection: first, userId: Number(userId) },
-          };
+          const navParams = { payUrl: checkoutUrl, html: null, returnUrl: null, meta };
           console.log("➡️ [BuyTicketScreen] navigate PaymentWebViewScreen with:", navParams);
           navigation.navigate("PaymentWebViewScreen", navParams);
           return;
@@ -300,12 +309,7 @@ export default function BuyTicketScreen() {
           return;
         }
 
-        const navParams = {
-          payUrl,
-          html,
-          returnUrl: null,
-          meta: { selection: first, userId: Number(userId) },
-        };
+        const navParams = { payUrl, html, returnUrl: null, meta };
         console.log("➡️ [BuyTicketScreen] navigate PaymentWebViewScreen with:", navParams);
         navigation.navigate("PaymentWebViewScreen", navParams);
       } catch (e) {
@@ -330,7 +334,7 @@ export default function BuyTicketScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.headerCard}
         >
-          <Text style={styles.headerTitle}>{headerTitle}</Text>
+          <Text style={styles.headerTitle}>Chọn loại vé</Text>
           {!!headerSub && <Text style={styles.headerSub}>{headerSub}</Text>}
         </LinearGradient>
       </View>

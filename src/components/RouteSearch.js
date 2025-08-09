@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -19,7 +19,6 @@ import TripDetailCard from "./routes/TripDetailCard";
 export default function RouteSearch({
   from = "",
   to = "",
-  time = "14:00",
   onSwap,
   onSettings,
   onChangeFrom,
@@ -31,8 +30,21 @@ export default function RouteSearch({
   const [showTripDetailModal, setShowTripDetailModal] = useState(false);
   const [routeParams, setRouteParams] = useState({ from: "", to: "" });
 
-  // NEW: Trip state được chọn
+  // Trip được chọn
   const [selectedTrip, setSelectedTrip] = useState(null);
+
+  // 🕒 Thời gian thực (Asia/Ho_Chi_Minh)
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const formattedTime = now.toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
 
   const handleSubmitRoute = (fromValue, toValue) => {
     setShowSearchHistory(false);
@@ -74,9 +86,8 @@ export default function RouteSearch({
       {/* Time + Transport Icons */}
       <View style={styles.infoRow}>
         <View style={styles.timeTransport}>
-          <Text style={styles.timeText}>{time}</Text>
+          <Text style={styles.timeText}>{formattedTime}</Text>
           <IconButton icon="clock-outline" size={18} />
-
           <TouchableOpacity
             style={styles.transportIcons}
             onPress={() => setShowTransportMenu(true)}
@@ -135,7 +146,7 @@ export default function RouteSearch({
                   from={routeParams.from}
                   to={routeParams.to}
                   onCardPress={(trip) => {
-                    setSelectedTrip(trip);              // ✅ lấy dữ liệu từ card
+                    setSelectedTrip(trip);
                     setShowTripDetailModal(true);
                   }}
                 />
@@ -147,10 +158,12 @@ export default function RouteSearch({
 
       {/* MODAL: Trip Detail */}
       <Modal visible={showTripDetailModal} transparent animationType="slide">
-        <TouchableWithoutFeedback onPress={() => {
-          setShowTripDetailModal(false);
-          setSelectedTrip(null);                      // ✅ clear dữ liệu nếu muốn
-        }}>
+        <TouchableWithoutFeedback
+          onPress={() => {
+            setShowTripDetailModal(false);
+            setSelectedTrip(null);
+          }}
+        >
           <View style={styles.overlay}>
             <TouchableWithoutFeedback>
               <View style={styles.routeSheet}>
@@ -163,7 +176,7 @@ export default function RouteSearch({
                   }}
                   style={{ alignSelf: "flex-end", margin: 8 }}
                 />
-                {selectedTrip && <TripDetailCard trip={selectedTrip} />} {/* ✅ truyền trip động */}
+                {selectedTrip && <TripDetailCard trip={selectedTrip} />}
               </View>
             </TouchableWithoutFeedback>
           </View>

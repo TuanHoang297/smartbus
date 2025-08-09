@@ -369,7 +369,7 @@ export default function MyTicketScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             {usableToRender.length === 0 ? (
-              <Text>Chưa có vé khả dụng cho tab này.</Text>
+              <Text>Chưa có vé khả dụng.</Text>
             ) : (
               usableToRender.map(renderUsableCard)
             )}
@@ -382,7 +382,7 @@ export default function MyTicketScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             {usedToRender.length === 0 ? (
-              <Text>Chưa có vé đã sử dụng cho tab này.</Text>
+              <Text>Chưa có vé đã sử dụng.</Text>
             ) : (
               usedToRender.map(renderUsedCard)
             )}

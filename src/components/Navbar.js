@@ -5,12 +5,9 @@ import { IconButton, Badge } from "react-native-paper";
 import { useSelector } from "react-redux";
 import { selectUnreadCount } from "../redux/slices/notificationsSlice"; // 👈 chỉnh path cho đúng
 
-export default function Navbar({ showBack = false, avatarUrl }) {
+export default function Navbar({ showBack = false }) {
   const navigation = useNavigation();
   const unreadCount = useSelector(selectUnreadCount);
-
-  const fallbackAvatar =
-    "https://res.cloudinary.com/dkfykdjlm/image/upload/v1750849062/default-avatar_dgjf0v.png";
 
   const badgeText = unreadCount > 99 ? "99+" : String(unreadCount);
 
@@ -54,16 +51,6 @@ export default function Navbar({ showBack = false, avatarUrl }) {
             </Badge>
           )}
         </View>
-
-        <TouchableOpacity
-          style={styles.avatarWrapper}
-          onPress={() => navigation.navigate("ProfileScreen")}
-        >
-          <Image
-            source={{ uri: avatarUrl || fallbackAvatar }}
-            style={styles.avatar}
-          />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -90,6 +77,4 @@ const styles = StyleSheet.create({
     right: 4,
     backgroundColor: "#FF3B30", // đỏ để nổi bật
   },
-  avatarWrapper: { backgroundColor: "#000", borderRadius: 24, padding: 6 },
-  avatar: { width: 24, height: 24, borderRadius: 12 },
 });
