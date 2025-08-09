@@ -25,6 +25,7 @@ import RouteDetailScreen from "../components/routes/RouteDetailScreen";
 import { BuyTicketScreen, MyTicketScreen } from "../screens/ticket";
 import ProfileScreen from "../screens/profile/ProfileScreen";
 import EditProfileScreen from "../screens/profile/EditProfileScreen";
+import PaymentWebViewScreen from "../screens/payment/PaymentWebViewScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -53,7 +54,8 @@ export default function AppNavigator() {
         <Stack.Screen name="RouteDetail" component={RouteDetailScreen} />
 
         <Stack.Screen name="TicketsScreen" component={MyTicketScreen} />
-        <Stack.Screen name="BuyTicketsScreen" component={BuyTicketScreen} />
+        <Stack.Screen name="BuyTicketScreen" component={BuyTicketScreen} />
+        <Stack.Screen name="PaymentWebViewScreen" component={PaymentWebViewScreen} />
 
         <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
         <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />

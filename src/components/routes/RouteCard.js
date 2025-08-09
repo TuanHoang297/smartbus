@@ -9,16 +9,18 @@ export default function RouteCard({
   price,
   from,
   to,
-  routeName, // thêm tên tuyến
+  routeName, 
+  routeId,   
 }) {
   return (
     <View style={styles.card}>
       <Text style={styles.time}>{time}</Text>
       <Text style={styles.detail}>{duration}, không đổi trạm</Text>
 
-      {routeName && (
-        <Text style={styles.routeName}>Tuyến: {routeName}</Text>
-      )}
+      {routeName && <Text style={styles.routeName}>Tuyến: {routeName}</Text>}
+      
+      {/* 👇 hiển thị routeId nếu có */}
+      {routeId && <Text style={styles.routeId}>Tuyến xe bus số: {routeId}</Text>}
 
       <Text style={styles.label}>Trạm lên xe</Text>
       <Text style={styles.station}>{station}</Text>
@@ -53,7 +55,12 @@ const styles = StyleSheet.create({
   routeName: {
     fontSize: 13,
     color: "#888",
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  routeId: {
+    fontSize: 13,
+    color: "#888",
+    marginBottom: 4,
   },
   label: {
     fontSize: 12,
