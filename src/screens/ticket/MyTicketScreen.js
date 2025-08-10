@@ -1,4 +1,3 @@
-// screens/Tickets/MyTicketScreen.js
 import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
@@ -15,12 +14,10 @@ import Navbar from "../../components/Navbar";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSelector } from "react-redux";
-import api from "../../services/api"; // axios baseURL: https://smartbus-68ae.onrender.com/api
-
-// SVG: mép xé góc
+import api from "../../services/api";
 import Svg, { Path } from "react-native-svg";
 
-// --- JWT helpers: FE tự decode ---
+// --- JWT helpers ---
 function base64UrlDecode(input) {
   try {
     const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
@@ -69,54 +66,33 @@ function getUserIdFromToken(token) {
   );
 }
 
-// ---- SVG mép xé răng cưa (góc phải-trên) ----
-const TornCornerSVG = ({ fill = "#FFFFFF", stroke = "#E5E7EB" }) => {
-  // ViewBox 0..72: vẽ mảng răng cưa phủ lên góc phải-trên
-  // Điều chỉnh các điểm Lx,y để răng cưa dày/mỏng hơn
-  return (
-    <View style={styles.tornCornerWrap} pointerEvents="none">
-      <Svg width={72} height={72} viewBox="0 0 72 72">
-        <Path
-          d="
-            M72,0 
-            L72,44
-            L62,38 
-            L57,44 
-            L52,38 
-            L47,44 
-            L42,38 
-            L37,44 
-            L32,38 
-            L27,44 
-            L22,38
-            L0,38
-            L0,0
-            Z
-          "
-          fill={fill}
-          stroke={stroke}
-          strokeWidth="2"
-        />
-      </Svg>
-      {/* Bóng nhẹ để mép xé nổi khối */}
-      <View style={styles.tornShadow} />
-    </View>
-  );
-};
+// SVG mép xé
+const TornCornerSVG = ({ fill = "#FFFFFF", stroke = "#E5E7EB" }) => (
+  <View style={styles.tornCornerWrap} pointerEvents="none">
+    <Svg width={72} height={72} viewBox="0 0 72 72">
+      <Path
+        d="M72,0 L72,44 L62,38 L57,44 L52,38 L47,44 L42,38 L37,44 L32,38 L27,44 L22,38 L0,38 L0,0 Z"
+        fill={fill}
+        stroke={stroke}
+        strokeWidth="2"
+      />
+    </Svg>
+    <View style={styles.tornShadow} />
+  </View>
+);
 
 export default function MyTicketScreen({ navigation }) {
-  const [tab, setTab] = useState("single"); // 'single' | 'monthly'
-  const [usableCards, setUsableCards] = useState([]); // cùng ngày
-  const [usedCards, setUsedCards] = useState([]); // qua ngày
+  const [tab, setTab] = useState("single");
+  const [usableCards, setUsableCards] = useState([]);
+  const [usedCards, setUsedCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
   const token = useSelector((s) => s.auth?.token);
-
   const now = useMemo(() => new Date(), [refreshing, loading]);
+  const isMonthlyTab = tab === "monthly";
 
-  // So sánh theo ngày-tháng-năm (local device)
   const isSameYMD = (a, b) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -124,6 +100,11 @@ export default function MyTicketScreen({ navigation }) {
 
   const pickIssuedDate = (t) => {
     const d = t.IssuedAt ? new Date(t.IssuedAt) : null;
+    return isNaN(d?.getTime?.()) ? null : d;
+  };
+
+  const pickExpiredDate = (t) => {
+    const d = t.ExpiredAt ? new Date(t.ExpiredAt) : null;
     return isNaN(d?.getTime?.()) ? null : d;
   };
 
@@ -137,9 +118,9 @@ export default function MyTicketScreen({ navigation }) {
   const formatDateVN = (d) =>
     d ? `Ngày ${d.getDate()} tháng ${d.getMonth() + 1}` : "";
 
-  // Map từ vé thật sang card UI
   const mapToCard = (t) => {
     const issued = pickIssuedDate(t);
+    const expired = pickExpiredDate(t);
     const priceNum =
       typeof t.Price === "number" ? t.Price : Number(String(t.Price || 0));
     return {
@@ -156,23 +137,31 @@ export default function MyTicketScreen({ navigation }) {
       startStation: t.TicketTypeName || "—",
       endStation: `Mã tuyến ${t.RouteId ?? "—"}`,
       rawIssued: issued,
-      rawExpired: t.ExpiredAt ? new Date(t.ExpiredAt) : null,
+      rawExpired: expired, // ✅ Dùng ExpiredAt từ API
       ticketTypeName: t.TicketTypeName || "",
-      raw: t, // vé gốc
+      raw: t,
     };
   };
 
-  // Phân loại: trong ngày (IssuedAt cùng ngày) vs qua ngày
   const splitTickets = (list) => {
     const usable = [];
     const used = [];
+
     list.forEach((t) => {
-      const issued = t.IssuedAt ? new Date(t.IssuedAt) : null;
-      if (issued && isSameYMD(issued, now)) usable.push(t);
-      else used.push(t);
+      if (!t.rawExpired) {
+        used.push(t);
+        return;
+      }
+      if (now >= t.rawExpired || (t.raw?.RemainingUses ?? 0) <= 0) {
+        used.push(t);
+      } else {
+        usable.push(t);
+      }
     });
+
     const sortDesc = (a, b) =>
-      new Date(b.IssuedAt).getTime() - new Date(a.IssuedAt).getTime();
+      new Date(b.rawIssued).getTime() - new Date(a.rawIssued).getTime();
+
     return { usable: usable.sort(sortDesc), used: used.sort(sortDesc) };
   };
 
@@ -195,9 +184,10 @@ export default function MyTicketScreen({ navigation }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
-      const { usable, used } = splitTickets(data);
-      setUsableCards(usable.map(mapToCard));
-      setUsedCards(used.map(mapToCard));
+      const mapped = data.map(mapToCard);
+      const { usable, used } = splitTickets(mapped);
+      setUsableCards(usable);
+      setUsedCards(used);
     } catch (e) {
       setError(
         e?.response?.data?.message ||
@@ -211,17 +201,15 @@ export default function MyTicketScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       fetchTickets();
-    }, [token])
+    }, [token, tab])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchTickets();
     setRefreshing(false);
-  }, [token]);
+  }, [token, tab]);
 
-  // ---- Lọc theo TAB ----
-  const isMonthlyTab = tab === "monthly";
   const isVeTap = (name) => name === "Vé tập";
 
   const filterByTab = (card) =>
@@ -236,9 +224,18 @@ export default function MyTicketScreen({ navigation }) {
     [usedCards, tab]
   );
 
-  // ---- Render card ----
   const CardContent = ({ ticket }) => {
     const sameLine = !ticket.to || ticket.from === ticket.to;
+    let expireText = "";
+    if (ticket.rawExpired) {
+      expireText = `Hết hạn: ${String(ticket.rawExpired.getDate()).padStart(
+        2,
+        "0"
+      )}/${String(ticket.rawExpired.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}/${ticket.rawExpired.getFullYear()}`;
+    }
     return (
       <View style={styles.ticketCard}>
         <View style={styles.ticketHeader}>
@@ -246,6 +243,7 @@ export default function MyTicketScreen({ navigation }) {
           <MaterialIcons name="directions-bus" size={20} color="#fff" />
         </View>
         <Text style={styles.date}>{ticket.dateText}</Text>
+        {expireText ? <Text style={styles.expireDate}>{expireText}</Text> : null}
 
         <View style={styles.stationRow}>
           <Text style={styles.stationLabel}>{ticket.startStation}</Text>
@@ -268,6 +266,14 @@ export default function MyTicketScreen({ navigation }) {
           <Text style={styles.priceLabel}>Giá vé</Text>
           <Text style={styles.priceText}>{ticket.price}</Text>
         </View>
+
+        <View style={{ marginTop: 4 }}>
+          <Text style={{ color: "#000", fontSize: 13 }}>
+            {isMonthlyTab
+              ? `Còn lại: ${ticket.raw?.RemainingUses ?? 0}/30 lượt`
+              : `Còn lại: ${ticket.raw?.RemainingUses ?? 0} lượt`}
+          </Text>
+        </View>
       </View>
     );
   };
@@ -278,9 +284,9 @@ export default function MyTicketScreen({ navigation }) {
       activeOpacity={0.9}
       onPress={() =>
         navigation.navigate("TicketDetail", {
-          ticket, // card đã map
-          raw: ticket.raw, // vé gốc
-          qrcode: ticket.qrcode, // chuỗi QR (nếu có)
+          ticket,
+          raw: ticket.raw,
+          qrcode: ticket.qrcode,
         })
       }
     >
@@ -288,12 +294,9 @@ export default function MyTicketScreen({ navigation }) {
     </TouchableOpacity>
   );
 
-  // Vé đã sử dụng: mờ + mép xé góc bằng SVG
   const renderUsedCard = (ticket) => (
     <View key={ticket.id} style={styles.usedTicketWrapper}>
-      {/* Mép xé (góc phải-trên) */}
       <TornCornerSVG />
-      {/* Mờ nội dung vé */}
       <View style={{ opacity: 0.55 }}>
         <CardContent ticket={ticket} />
       </View>
@@ -322,7 +325,6 @@ export default function MyTicketScreen({ navigation }) {
               Mua vé hoặc xem vé hiện tại của bạn.
             </Text>
           </LinearGradient>
-
           <TouchableOpacity
             style={styles.buyButtonFloating}
             onPress={() => navigation.navigate("Home")}
@@ -361,7 +363,6 @@ export default function MyTicketScreen({ navigation }) {
           <Text style={{ color: "red" }}>{error}</Text>
         ) : (
           <>
-            {/* Vé có thể sử dụng */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>🎫 Vé có thể sử dụng</Text>
               <TouchableOpacity>
@@ -374,7 +375,6 @@ export default function MyTicketScreen({ navigation }) {
               usableToRender.map(renderUsableCard)
             )}
 
-            {/* Vé đã sử dụng */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>🕓 Vé đã sử dụng</Text>
               <TouchableOpacity>
@@ -413,37 +413,20 @@ const styles = StyleSheet.create({
     position: "relative",
     zIndex: 1,
   },
-  headerTitle: {
-    color: "#000",
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-  headerSubtitle: {
-    color: "#000",
-    fontSize: 14,
-  },
+  headerTitle: { color: "#000", fontSize: 20, fontWeight: "700", marginBottom: 6 },
+  headerSubtitle: { color: "#000", fontSize: 14 },
   buyButtonFloating: {
     position: "absolute",
     bottom: -15,
     left: 18,
-    alignSelf: "left",
     backgroundColor: "#fff",
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 10,
     zIndex: 2,
     elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
   },
-  container: {
-    padding: 16,
-    paddingTop: 0,
-    paddingBottom: 120,
-  },
+  container: { padding: 16, paddingTop: 0, paddingBottom: 120 },
   tabContainer: {
     flexDirection: "row",
     backgroundColor: "#eee",
@@ -451,35 +434,18 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     overflow: "hidden",
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  activeTab: {
-    backgroundColor: "#4CAF50",
-  },
-  tabText: {
-    color: "#555",
-  },
-  activeTabText: {
-    color: "#000",
-    fontWeight: "600",
-  },
+  tab: { flex: 1, paddingVertical: 10, alignItems: "center" },
+  activeTab: { backgroundColor: "#4CAF50" },
+  tabText: { color: "#555" },
+  activeTabText: { color: "#000", fontWeight: "600" },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 8,
     marginTop: 20,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  dropdown: {
-    fontSize: 14,
-    color: "#000",
-  },
+  sectionTitle: { fontSize: 16, fontWeight: "600" },
+  dropdown: { fontSize: 14, color: "#000" },
   ticketCard: {
     backgroundColor: "#4CAF50",
     borderRadius: 12,
@@ -487,74 +453,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     overflow: "hidden",
   },
-  ticketHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  time: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#000",
-  },
-  date: {
-    color: "#000",
-    marginBottom: 8,
-  },
-  stationRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  stationLabel: {
-    color: "#000",
-    fontWeight: "600",
-  },
-  locationRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  locationText: {
-    color: "#000",
-    fontSize: 14,
-  },
-  locationSingle: {
-    color: "#000",
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  dashedLine: {
-    borderTopWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "#fff",
-    marginVertical: 8,
-  },
-  priceRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  priceLabel: {
-    color: "#000",
-    fontWeight: "600",
-  },
-  priceText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  // --- Mép xé + wrapper cho vé đã dùng ---
-  usedTicketWrapper: {
-    position: "relative",
-    marginBottom: 12,
-  },
-  tornCornerWrap: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    width: 72,
-    height: 72,
-    zIndex: 10,
-  },
+  ticketHeader: { flexDirection: "row", justifyContent: "space-between" },
+  time: { fontSize: 18, fontWeight: "700", color: "#000" },
+  date: { color: "#000" },
+  expireDate: { color: "#000", fontSize: 13, marginBottom: 4, fontStyle: "italic" },
+  stationRow: { flexDirection: "row", justifyContent: "space-between" },
+  stationLabel: { color: "#000", fontWeight: "600" },
+  locationRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
+  locationText: { color: "#000", fontSize: 14 },
+  locationSingle: { color: "#000", fontSize: 14, marginBottom: 8 },
+  dashedLine: { borderTopWidth: 1, borderStyle: "dashed", borderColor: "#fff", marginVertical: 8 },
+  priceRow: { flexDirection: "row", justifyContent: "space-between" },
+  priceLabel: { color: "#000", fontWeight: "600" },
+  priceText: { color: "#000", fontSize: 16, fontWeight: "700" },
+  usedTicketWrapper: { position: "relative", marginBottom: 12 },
+  tornCornerWrap: { position: "absolute", top: -2, right: -2, width: 72, height: 72, zIndex: 10 },
   tornShadow: {
     position: "absolute",
     top: 40,

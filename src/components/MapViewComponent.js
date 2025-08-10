@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
  refreshOverlay: {
   position: "absolute",
-  top: 10,
+  top: 40,
   left: 0,
   right: 0,
   alignItems: "center",

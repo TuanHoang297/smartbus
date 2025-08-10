@@ -9,7 +9,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import { Text, IconButton } from "react-native-paper";
+import { Text, IconButton, Portal } from "react-native-paper"; // <-- thêm Portal
 
 import MenuTransportType from "./menus/MenuTransportType";
 import MenuSearchHistory from "./menus/MenuSearchHistory";
@@ -30,10 +30,8 @@ export default function RouteSearch({
   const [showTripDetailModal, setShowTripDetailModal] = useState(false);
   const [routeParams, setRouteParams] = useState({ from: "", to: "" });
 
-  // Trip được chọn
   const [selectedTrip, setSelectedTrip] = useState(null);
 
-  // 🕒 Thời gian thực (Asia/Ho_Chi_Minh)
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -117,14 +115,22 @@ export default function RouteSearch({
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* MODAL: Search History */}
-      <Modal visible={showSearchHistory} transparent animationType="slide">
+      {/* MODAL: Search History — thêm Portal.Host để dropdown hiển thị đúng lớp */}
+      <Modal visible={showSearchHistory} transparent animationType="none" presentationStyle="overFullScreen">
         <TouchableWithoutFeedback onPress={() => setShowSearchHistory(false)}>
           <View style={styles.overlay}>
             <TouchableWithoutFeedback>
-              <View style={styles.bottomSheet}>
-                <MenuSearchHistory onConfirm={handleSubmitRoute} />
-              </View>
+              {/* Host cục bộ cho mọi Portal bên trong MenuSearchHistory */}
+              
+              <Portal.Host hostName="menuHost">
+                <View style={{ height: 175, backgroundColor: "rgba(0,0,0,0.3)" }} />
+                <View style={styles.bottomSheet}>
+                  <MenuSearchHistory
+                    onConfirm={handleSubmitRoute}
+                    portalHostName="menuHost"   // <-- truyền xuống input con
+                  />
+                </View>
+              </Portal.Host>
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>

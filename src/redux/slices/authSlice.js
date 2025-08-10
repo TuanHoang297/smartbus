@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   loginAPI,
   logoutAPI,
@@ -9,17 +10,21 @@ import {
 
 const initialState = {
   user: null,
-  token: null,         // <-- thêm token
+  token: null,
   status: 'idle',
   error: null,
 };
 
 const extractToken = (payload) => {
   if (!payload) return null;
-  // hỗ trợ nhiều schema trả về từ backend
   return (
-    payload.token || payload.accessToken || payload.jwt || payload.id_token ||
-    payload.data?.token || payload.data?.accessToken || null
+    payload.token ||
+    payload.accessToken ||
+    payload.jwt ||
+    payload.id_token ||
+    payload.data?.token ||
+    payload.data?.accessToken ||
+    null
   );
 };
 
@@ -34,7 +39,7 @@ export const login = createAsyncThunk(
   async ({ email, password }, { rejectWithValue }) => {
     try {
       const res = await loginAPI(email, password);
-      return res.data; // kỳ vọng { token, user } hoặc tương tự
+      return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
@@ -81,14 +86,32 @@ export const resetPassword = createAsyncThunk(
 );
 
 // 🚪 Đăng xuất
-export const logout = createAsyncThunk(
-  'auth/logout',
+export const logout = createAsyncThunk('auth/logout', async (_, { rejectWithValue }) => {
+  try {
+    const res = await logoutAPI();
+    await AsyncStorage.removeItem('authToken');
+    await AsyncStorage.removeItem('authUser');
+    return res.data;
+  } catch (err) {
+    await AsyncStorage.removeItem('authToken');
+    await AsyncStorage.removeItem('authUser');
+    return rejectWithValue(err.response?.data || err.message);
+  }
+});
+
+// 📥 Load Auth từ AsyncStorage khi mở app
+export const loadAuthFromStorage = createAsyncThunk(
+  'auth/loadAuthFromStorage',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await logoutAPI();
-      return res.data;
+      const token = await AsyncStorage.getItem('authToken');
+      const userData = await AsyncStorage.getItem('authUser');
+      return {
+        token: token || null,
+        user: userData ? JSON.parse(userData) : null,
+      };
     } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
+      return rejectWithValue(err.message);
     }
   }
 );
@@ -97,7 +120,6 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    // tuỳ chọn: set thủ công nếu cần
     setToken(state, action) {
       state.token = action.payload || null;
     },
@@ -120,9 +142,17 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.token = extractToken(action.payload);   // <-- lưu token
-        state.user = extractUser(action.payload);     // <-- lưu user
+        state.token = extractToken(action.payload);
+        state.user = extractUser(action.payload);
         state.error = null;
+
+        // Lưu vào AsyncStorage
+        if (state.token) {
+          AsyncStorage.setItem('authToken', state.token);
+        }
+        if (state.user) {
+          AsyncStorage.setItem('authUser', JSON.stringify(state.user));
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed';
@@ -131,13 +161,19 @@ const authSlice = createSlice({
         state.user = null;
       })
 
-      // REGISTER (nếu backend trả luôn token sau đăng ký)
+      // REGISTER
       .addCase(register.fulfilled, (state, action) => {
         state.status = 'succeeded';
         const tk = extractToken(action.payload);
-        if (tk) state.token = tk;
         const u = extractUser(action.payload);
-        if (u) state.user = u;
+        if (tk) {
+          state.token = tk;
+          AsyncStorage.setItem('authToken', tk);
+        }
+        if (u) {
+          state.user = u;
+          AsyncStorage.setItem('authUser', JSON.stringify(u));
+        }
         state.error = null;
       })
       .addCase(register.pending, (state) => {
@@ -156,11 +192,16 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(logout.rejected, (state, action) => {
-        // ngay cả khi API fail vẫn xoá local
         state.user = null;
         state.token = null;
         state.status = 'idle';
         state.error = action.payload;
+      })
+
+      // LOAD AUTH FROM STORAGE
+      .addCase(loadAuthFromStorage.fulfilled, (state, action) => {
+        state.token = action.payload.token;
+        state.user = action.payload.user;
       });
   },
 });

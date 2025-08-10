@@ -335,7 +335,6 @@ export default function BuyTicketScreen() {
           style={styles.headerCard}
         >
           <Text style={styles.headerTitle}>Chọn loại vé</Text>
-          {!!headerSub && <Text style={styles.headerSub}>{headerSub}</Text>}
         </LinearGradient>
       </View>
 

@@ -12,6 +12,7 @@ import { Text, TextInput, Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
 import { login } from "../../redux/slices/authSlice";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen() {
   const navigation = useNavigation();
@@ -38,9 +39,15 @@ export default function LoginScreen() {
 
     try {
       const result = await dispatch(login({ email, password })).unwrap();
-      if (result) {
+      if (result?.token) {
+        // Lưu token vào AsyncStorage
+        await AsyncStorage.setItem("authToken", result.token);
+
         Alert.alert("Đăng nhập thành công!");
-        navigation.navigate("Home");
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Home" }],
+        });
       }
     } catch (error) {
       Alert.alert("Đăng nhập thất bại", error?.message || "Vui lòng thử lại.");

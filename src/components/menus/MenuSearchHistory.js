@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
-import { Text, Button } from "react-native-paper";
+import React, { useEffect, useMemo, useState } from "react";
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList } from "react-native";
+import { Text } from "react-native-paper";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import AutoCompleteInput from "../AutoCompleteInput";
 import { extractStationsFromRoutes } from "../../services/stationService";
@@ -8,7 +8,7 @@ import { useSelector } from "react-redux";
 import { selectAuthToken } from "../../redux/slices/authSlice";
 import api from "../../services/api";
 
-// ==== Helpers: decode JWT lấy userId (không cần thư viện ngoài) ====
+// ==== Helpers: decode JWT ====
 function base64UrlDecode(input = "") {
   try {
     const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
@@ -45,14 +45,14 @@ function parseFromTo(routeName = "") {
   return { from: s, to: s };
 }
 
-export default function MenuSearchHistory({ onConfirm, savedPlaces = [] }) {
+export default function MenuSearchHistory({ onConfirm, savedPlaces = [], portalHostName }) {
   const token = useSelector(selectAuthToken);
 
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [stationSuggestions, setStationSuggestions] = useState([]);
 
-  const [recent, setRecent] = useState([]);          // ⬅️ không còn fallback
+  const [recent, setRecent] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [recentError, setRecentError] = useState("");
 
@@ -65,7 +65,7 @@ export default function MenuSearchHistory({ onConfirm, savedPlaces = [] }) {
     const fetchRecents = async () => {
       const userId = getUserIdFromToken(token);
       if (!token || !userId) {
-        setRecent([]); // không token → rỗng
+        setRecent([]);
         return;
       }
       try {
@@ -75,7 +75,9 @@ export default function MenuSearchHistory({ onConfirm, savedPlaces = [] }) {
           headers: { Authorization: `Bearer ${token}` },
         });
         const arr = Array.isArray(res.data) ? res.data : res.data?.items || res.data?.data || [];
-        const sorted = [...arr].sort((a, b) => new Date(b.IssuedAt) - new Date(a.IssuedAt));
+        const sorted = [...arr].sort(
+          (a, b) => new Date(b.IssuedAt).getTime() - new Date(a.IssuedAt).getTime()
+        );
         const mapped = sorted
           .map(t => {
             const p = parseFromTo(t.RouteName || "");
@@ -103,8 +105,10 @@ export default function MenuSearchHistory({ onConfirm, savedPlaces = [] }) {
     onConfirm?.(from, to);
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
+  // Header cho FlatList: 2 input + saved places + trạng thái recent
+  const ListHeader = useMemo(() => (
+    <View style={styles.headerBox}>
+      
       <Text style={styles.title}>Điểm đến của bạn</Text>
 
       <View style={styles.inputRow}>
@@ -116,6 +120,7 @@ export default function MenuSearchHistory({ onConfirm, savedPlaces = [] }) {
             onChange={setFrom}
             suggestions={stationSuggestions}
             onSelect={setFrom}
+            portalHostName={portalHostName}  // <<< quan trọng
           />
         </View>
       </View>
@@ -129,6 +134,7 @@ export default function MenuSearchHistory({ onConfirm, savedPlaces = [] }) {
             onChange={setTo}
             suggestions={stationSuggestions}
             onSelect={setTo}
+            portalHostName={portalHostName}  // <<< quan trọng
           />
         </View>
       </View>
@@ -144,24 +150,7 @@ export default function MenuSearchHistory({ onConfirm, savedPlaces = [] }) {
         <Text style={{ color: "#666", marginBottom: 8 }}>Chưa có dữ liệu.</Text>
       ) : null}
 
-      {recent.map((place, idx) => (
-        <TouchableOpacity
-          key={`${place.from}-${place.to}-${idx}`}
-          style={styles.recentItem}
-          onPress={() => {
-            setFrom(place.from);
-            setTo(place.to);
-          }}
-        >
-          <Icon name="history" color="white" size={24} />
-          <View style={{ marginLeft: 10 }}>
-            <Text style={styles.recentFrom}>{place.from}</Text>
-            <Text style={styles.recentTo}>{place.to}</Text>
-          </View>
-        </TouchableOpacity>
-      ))}
-
-      {/* Địa điểm đã lưu: chỉ hiển thị nếu có props.savedPlaces */}
+      {/* Địa điểm đã lưu */}
       {Array.isArray(savedPlaces) && savedPlaces.length > 0 && (
         <>
           <Text style={styles.section}>Địa điểm đã lưu</Text>
@@ -179,21 +168,51 @@ export default function MenuSearchHistory({ onConfirm, savedPlaces = [] }) {
           </View>
         </>
       )}
+    </View>
+  ), [from, to, stationSuggestions, loadingRecent, recentError, savedPlaces, portalHostName]);
 
-      <Button
-        mode="contained"
-        onPress={handleConfirm}
-        style={styles.confirmBtn}
-        labelStyle={{ fontWeight: "bold" }}
-      >
-        Xác nhận lựa chọn
-      </Button>
-    </ScrollView>
+  const renderRecentItem = ({ item, index }) => (
+    <TouchableOpacity
+      key={`${item.from}-${item.to}-${index}`}
+      style={styles.recentItem}
+      onPress={() => {
+        setFrom(item.from);
+        setTo(item.to);
+      }}
+      activeOpacity={0.8}
+    >
+      <Icon name="history" color="white" size={24} />
+      <View style={{ marginLeft: 10 }}>
+        <Text style={styles.recentFrom}>{item.from}</Text>
+        <Text style={styles.recentTo}>{item.to}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <FlatList
+      contentContainerStyle={styles.container}
+      data={recent}
+      renderItem={renderRecentItem}
+      keyExtractor={(item, idx) => `${item.from}-${item.to}-${idx}`}
+      ListHeaderComponent={ListHeader}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      initialNumToRender={8}
+      windowSize={7}
+      removeClippedSubviews
+      ListFooterComponent={
+        <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>Xác nhận lựa chọn</Text>
+        </TouchableOpacity>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: "white", padding: 16, borderRadius: 16 },
+  container: { backgroundColor: "white", padding: 16, borderRadius: 16,},
+  headerBox: {},
   title: { fontSize: 16, fontWeight: "600", marginBottom: 12, textAlign: "center" },
   inputRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   inputFlex: { flex: 1, marginLeft: 8 },
@@ -211,5 +230,11 @@ const styles = StyleSheet.create({
   savedRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 24 },
   savedBtn: { alignItems: "center", paddingVertical: 8, paddingHorizontal: 14, backgroundColor: "#f5f5f5", borderRadius: 12 },
   savedLabel: { marginTop: 4, fontSize: 12, color: "#00B050" },
-  confirmBtn: { backgroundColor: "#00B050", borderRadius: 8, marginTop: 8 },
+  confirmBtn: {
+    backgroundColor: "#00B050",
+    borderRadius: 8,
+    marginTop: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
 });

@@ -218,11 +218,7 @@ export default function EditProfileScreen() {
 
         {/* Form */}
         <View style={styles.formSection}>
-          <Text style={styles.label}>Tên người dùng</Text>
-          <View style={styles.inputWrapper}>
-            <Ionicons name="person-outline" size={18} color="#888" />
-            <TextInput style={styles.input} value={form.username} editable={false} />
-          </View>
+        
 
           <Text style={styles.label}>Họ và Tên</Text>
           <View style={styles.inputWrapper}>

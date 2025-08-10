@@ -8,14 +8,14 @@ import {
   ScrollView,
   Alert,
   Modal,
-  ActivityIndicator, // 👈 thêm
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import Navbar from "../../components/Navbar";
 import BottomNavigationBar from "../../components/BottomNavigation";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSelector } from "react-redux";
-import { selectAuthToken } from "../../redux/slices/authSlice";
+import { useSelector, useDispatch } from "react-redux";
+import { selectAuthToken, logout } from "../../redux/slices/authSlice";
 import api from "../../services/api";
 import { Picker } from "@react-native-picker/picker";
 import { useFocusEffect } from "@react-navigation/native";
@@ -61,7 +61,7 @@ const formatVND = (n) => {
 
 const hhmm = (iso) => {
   try {
-    const d = new Date(iso);
+    const d = new Date(iso || "");
     if (isNaN(d)) return "--:--";
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   } catch {
@@ -70,6 +70,7 @@ const hhmm = (iso) => {
 };
 
 export default function ProfileScreen({ navigation }) {
+  const dispatch = useDispatch();
   const token = useSelector(selectAuthToken);
 
   const currentMonth = new Date().getMonth() + 1; // 1..12
@@ -80,7 +81,8 @@ export default function ProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [tickets, setTickets] = useState([]);
 
-  const [profileLoading, setProfileLoading] = useState(false); // 👈 thêm
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const userId = useMemo(() => getUserIdFromToken(token), [token]);
 
@@ -100,7 +102,7 @@ export default function ProfileScreen({ navigation }) {
       return;
     }
     try {
-      setProfileLoading(true); // 👈 bật loader
+      setProfileLoading(true);
       const res = await api.get(`/users/${userId}?month=${selectedMonth}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -109,7 +111,7 @@ export default function ProfileScreen({ navigation }) {
       console.log(e);
       Alert.alert("Lỗi", "Không tải được thông tin người dùng");
     } finally {
-      setProfileLoading(false); // 👈 tắt loader
+      setProfileLoading(false);
     }
   };
 
@@ -156,6 +158,27 @@ export default function ProfileScreen({ navigation }) {
       }
     }, [token, month])
   );
+
+  // ---- handle logout (dùng asyncThunk trong slice) ----
+  const handleLogout = useCallback(() => {
+    Alert.alert("Xác nhận", "Bạn có chắc muốn đăng xuất?", [
+      { text: "Huỷ", style: "cancel" },
+      {
+        text: "Đăng xuất",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setIsLoggingOut(true);
+            // luôn clear local dù API fail (đã xử lý trong slice)
+            await dispatch(logout()).unwrap().catch(() => {});
+          } finally {
+            setIsLoggingOut(false);
+            navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+          }
+        },
+      },
+    ]);
+  }, [dispatch, navigation]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -209,6 +232,24 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="copy-outline" size={16} color="#4CAF50" />
                 <Text style={styles.phoneText}>{profile?.PhoneNumber || "Chưa có số"}</Text>
               </View>
+
+              {/* Hành động tài khoản */}
+              <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={[styles.logoutBtn, isLoggingOut && { opacity: 0.6 }]}
+                  onPress={handleLogout}
+                  disabled={isLoggingOut}
+                >
+                  {isLoggingOut ? (
+                    <ActivityIndicator size="small" />
+                  ) : (
+                    <Ionicons name="log-out-outline" size={16} color="#d32f2f" />
+                  )}
+                  <Text style={styles.logoutText}>
+                    {isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </LinearGradient>
@@ -219,7 +260,7 @@ export default function ProfileScreen({ navigation }) {
             <View>
               <Text style={styles.sectionTitle}>Hành trình của bạn</Text>
               <Text style={styles.sectionDesc}>
-                Nhận thông báo về những thay đổi trong lộ trình của bạn.
+                Xem lại lộ trình của bạn.
               </Text>
             </View>
             <TouchableOpacity style={styles.filterBtn}>
@@ -294,18 +335,14 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.infoCardGreen}>
             <Text style={styles.infoValue}>{profile?.TotalTrips ?? 0}</Text>
             <Text style={styles.infoLabel}>Số chuyến đã đi</Text>
-            <Text style={styles.infoDesc}>
-              Xe Bus là phương tiện bạn sử dụng nhiều nhất
-            </Text>
+            <Text style={styles.infoDesc}>Xe Bus là phương tiện bạn sử dụng nhiều nhất</Text>
           </View>
           <View style={styles.infoCardWhite}>
             <Text style={styles.infoValueBlack}>
               {(profile?.LongestTrip?.DistanceKm ?? 0)} km
             </Text>
             <Text style={styles.infoLabelBlack}>Chuyến đi dài nhất của bạn</Text>
-            <Text style={styles.infoDescBlack}>
-              {profile?.LongestTrip?.RouteName || ""}
-            </Text>
+            <Text style={styles.infoDescBlack}>{profile?.LongestTrip?.RouteName || ""}</Text>
           </View>
         </View>
 
@@ -363,7 +400,6 @@ const styles = StyleSheet.create({
     paddingTop: 15,
     paddingBottom: 15,
   },
-  // 👇 style cho trạng thái loading header
   headerLoading: {
     height: 150,
     justifyContent: "center",
@@ -371,6 +407,28 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerLoadingText: { color: "#fff", fontSize: 13 },
+
+  headerActions: {
+    marginTop: 12,
+    flexDirection: "row",
+    gap: 10,
+  },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  logoutText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#d32f2f",
+  },
 
   avatarWrapper: {
     position: "relative",

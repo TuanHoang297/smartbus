@@ -34,12 +34,13 @@ export default function TicketDetailScreen({ route }) {
   const isUsedOut = Number(raw?.RemainingUses ?? 1) <= 0;
   const status = isExpired ? "Hết hạn" : isUsedOut ? "Đã dùng" : "Hợp lệ";
 
+  // QR code sẽ là link GET để backend tự gọi POST /tickets/use
   const qrCodeString = useMemo(() => {
-    const code = qrcode || raw?.Qrcode || ticket?.id || "";
-    return `https://smartbus-68ae.onrender.com/api/tickets/verify?code=${encodeURIComponent(
-      String(code)
+    const code = raw?.Qrcode || qrcode || ticket?.id || "";
+    return `https://smartbus-68ae.onrender.com/api/tickets/use-by-get/${encodeURIComponent(
+      code
     )}`;
-  }, [qrcode, raw, ticket]);
+  }, [raw, qrcode, ticket]);
 
   const fmtHM = (d) =>
     d
@@ -99,12 +100,7 @@ export default function TicketDetailScreen({ route }) {
               <SvgQRCode value={qrCodeString} size={210} />
             </View>
 
-            <View style={[styles.rowBetween, { marginTop: 12 }]}>
-              <Text style={styles.dimText}>Mã vé</Text>
-              <Text style={[styles.dimText, styles.mono]}>
-                {(qrcode || raw?.Qrcode || ticket?.id || "").slice(0, 16)}
-              </Text>
-            </View>
+
             <View style={[styles.rowBetween, { marginTop: 6 }]}>
               <Text style={styles.dimText}>Hết hạn</Text>
               <Text style={styles.dimText}>
