@@ -24,14 +24,11 @@
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.RECORD_AUDIO"
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -43,9 +40,6 @@
       "expo-image-picker"
     ],
     "extra": {
-      "eas": {
-        "projectId": "9d7851a3-7f45-421c-8bf6-7bf1707e788a"
-      }
     }
   }
 }
