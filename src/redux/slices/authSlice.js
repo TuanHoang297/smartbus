@@ -39,6 +39,17 @@ export const login = createAsyncThunk(
   async ({ email, password }, { rejectWithValue }) => {
     try {
       const res = await loginAPI(email, password);
+      const token = extractToken(res.data);
+      const user = extractUser(res.data);
+      
+      // Lưu vào AsyncStorage
+      if (token) {
+        await AsyncStorage.setItem('authToken', token);
+      }
+      if (user) {
+        await AsyncStorage.setItem('authUser', JSON.stringify(user));
+      }
+      
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
@@ -52,6 +63,17 @@ export const register = createAsyncThunk(
   async ({ email, password, fullName, phoneNumber, otp }, { rejectWithValue }) => {
     try {
       const res = await registerAPI(email, password, fullName, phoneNumber, otp);
+      const token = extractToken(res.data);
+      const user = extractUser(res.data);
+      
+      // Lưu vào AsyncStorage
+      if (token) {
+        await AsyncStorage.setItem('authToken', token);
+      }
+      if (user) {
+        await AsyncStorage.setItem('authUser', JSON.stringify(user));
+      }
+      
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
@@ -145,14 +167,6 @@ const authSlice = createSlice({
         state.token = extractToken(action.payload);
         state.user = extractUser(action.payload);
         state.error = null;
-
-        // Lưu vào AsyncStorage
-        if (state.token) {
-          AsyncStorage.setItem('authToken', state.token);
-        }
-        if (state.user) {
-          AsyncStorage.setItem('authUser', JSON.stringify(state.user));
-        }
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed';
@@ -164,16 +178,8 @@ const authSlice = createSlice({
       // REGISTER
       .addCase(register.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        const tk = extractToken(action.payload);
-        const u = extractUser(action.payload);
-        if (tk) {
-          state.token = tk;
-          AsyncStorage.setItem('authToken', tk);
-        }
-        if (u) {
-          state.user = u;
-          AsyncStorage.setItem('authUser', JSON.stringify(u));
-        }
+        state.token = extractToken(action.payload);
+        state.user = extractUser(action.payload);
         state.error = null;
       })
       .addCase(register.pending, (state) => {
